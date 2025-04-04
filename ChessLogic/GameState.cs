@@ -19,6 +19,8 @@ namespace ChessLogic
 		private static EState State = EState.White;
 		public static int Turn = 0;
 		private static string ActualFern = string.Empty;
+		public static int? EnPassant { get; set; } = null;
+		public static int HalfMoves = 0;
 
 		public static void InitGame()
 		{

@@ -156,8 +156,10 @@ namespace ChessLogic
             //chequeo que la pieza seleccionada sea del color correspondiente
             int pieceCode = squares[IndexActual];
             int pieceColor = pieceCode & Piece.ColorMask;
+            int? PossibleEnPassant = null;
+            bool? isOnLastRank = null;
 
-            if (pieceColor != GameState.getState())
+			if (pieceColor != GameState.getState())
             {
                 throw new InvalidOperationException($"No es el turno de {(pieceColor == 8 ? "Blanco" : "Negro")}");
             }
@@ -168,9 +170,58 @@ namespace ChessLogic
                 return;
             }
 
-            squares[(int)NewIndex] = squares[IndexActual];
+			//verifico no haver llegado a los 50 movimientos
+			if (GameState.HalfMoves >= 50)
+			{
+				throw new InvalidOperationException("Se ha alcanzado el límite de 50 movimientos sin capturas o movimientos de peones.");
+			}
+
+            //la posicion es valida, primero verifico en caso de que sea un peon para validar los movimientos en passant
+            if ((pieceCode & Piece.PieceMask) == 1)
+            {
+                //verifico que se esté intentando campturar en passant
+                if (NewIndex == GameState.EnPassant)
+                {
+                    //captura en passant
+                    squares[NewIndex + (pieceColor == Piece.White ? 8 : -8)] = 0;
+                }
+
+                //verifico si está moviendo dos espacios
+                if (Math.Abs(NewIndex - IndexActual) == 16)
+                {
+                    PossibleEnPassant = IndexActual + (pieceColor == Piece.White ? -8 : 8);
+                }
+
+                //el peon llego a la ultima fila
+                isOnLastRank = (pieceColor == Piece.White && NewIndex >= 0 && NewIndex <= 7) ||
+                                     (pieceColor == Piece.Black && NewIndex >= 56 && NewIndex <= 63);
+			}
+
+			//setear el en passant
+            GameState.EnPassant = PossibleEnPassant;
+
+			//muevo la pieza
+			squares[(int)NewIndex] = squares[IndexActual];
             squares[IndexActual] = 0;
-            GameState.ChangeTurn();
+
+			//en caso de capturar una pieza o mover un peon, actualizo los movimientos
+            if (squares[NewIndex] != 0 || (pieceCode & Piece.PieceMask) == 1)
+			{
+				GameState.HalfMoves = 0;
+			}
+			else
+			{
+				GameState.HalfMoves++;
+			}
+
+			if (isOnLastRank == true)
+			{
+				//cambio el peon por una reina 
+				//TODO: cambiar por la pieza que elija el jugador
+				squares[NewIndex] = pieceColor | Piece.Queen;
+			}
+
+			GameState.ChangeTurn();
 
         }
 
@@ -271,7 +322,7 @@ namespace ChessLogic
 				int captureIndex = valPos64 + capture;
 				int captureTarget = mailbox[captureIndex];
 
-				if (captureTarget != -1 && squares[captureTarget] != 0 && (squares[captureTarget] & Piece.ColorMask) != pieceColor)
+				if (captureTarget != -1 && ((squares[captureTarget] != 0 && (squares[captureTarget] & Piece.ColorMask) != pieceColor) || captureTarget == GameState.EnPassant))
 				{
 					posibleMovements.Add(captureTarget);
 				}
