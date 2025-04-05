@@ -414,7 +414,7 @@ namespace ChessLogic
 				{
 					bool isValid = true;
 					if (squares[0] != (Piece.Black | Piece.Rook)) isValid = false;
-					for (int i = 0; i < 4; i++)
+					for (int i = 1; i < 4; i++)
 					{
 						if (squares[i] != 0)
 						{
@@ -444,6 +444,7 @@ namespace ChessLogic
 			return false;
         }
 
+        //TODO: Verificar que no haya jaque en ninguna de las posiciones por las que pasa el rey
         private static void CastlingManager(int pieceType, int pieceColor, int IndexActual, int NewIndex)
         {
 			//Desactivo los enrroques segun corresponda
@@ -463,7 +464,7 @@ namespace ChessLogic
                         else if (GameState.castleWQ && NewIndex == 58)
 						{
                             squares[56] = 0;
-                            squares[58] = Piece.White | Piece.Rook;
+                            squares[59] = Piece.White | Piece.Rook;
 						}
 
 						GameState.castleWK = false;
@@ -479,7 +480,7 @@ namespace ChessLogic
 						else if (GameState.castleBQ && NewIndex == 2)
 						{
 							squares[0] = 0;
-							squares[2] = Piece.Black | Piece.Rook;
+							squares[3] = Piece.Black | Piece.Rook;
 						}
 
 						GameState.castleBK = false;
