@@ -160,10 +160,10 @@ namespace ChessLogic
 			int? PossibleEnPassant = null;
             bool? isOnLastRank = null;
 
-			if (pieceColor != GameState.getState())
-            {
-                throw new InvalidOperationException($"No es el turno de {(pieceColor == 8 ? "Blanco" : "Negro")}");
-            }
+			//if (pieceColor != GameState.getState())
+   //         {
+   //             throw new InvalidOperationException($"No es el turno de {(pieceColor == 8 ? "Blanco" : "Negro")}");
+   //         }
 
             //chequeo que la nueva posición sea válida
             if (!ValidMoveCheck(IndexActual, NewIndex))
@@ -176,6 +176,12 @@ namespace ChessLogic
 			{
 				throw new InvalidOperationException("Se ha alcanzado el límite de 50 movimientos sin capturas o movimientos de peones.");
 			}
+
+            /*
+             * 
+             * A PARTIR DE ESTE PUNTO EL MOVIMIENTO ES VALIDO
+             * 
+             */
 
             //la posicion es valida, primero verifico en caso de que sea un peon para validar los movimientos en passant
             if (pieceType == Piece.Pawn)
@@ -200,49 +206,8 @@ namespace ChessLogic
 			//setear el en passant
             GameState.EnPassant = PossibleEnPassant;
 
-			//Desactivo los enrroques segun corresponda
-			if (pieceType == Piece.King || pieceType == Piece.Rook)
-            {
-				//verifico si se movió el rey o la torre
-				if (pieceType == Piece.King)
-				{
-					if (pieceColor == Piece.White)
-                    {
-					    GameState.castleWK = false;
-					    GameState.castleWQ = false;
-                    }
-                    else
-                    {
-                        GameState.castleBK = false;
-					    GameState.castleBQ = false;
-                    }
-				}
-				else
-				{
-					if (pieceColor == Piece.White)
-					{
-						if (IndexActual == 56)
-						{
-							GameState.castleWK = false;
-						}
-						else if (IndexActual == 63)
-						{
-							GameState.castleWQ = false;
-						}
-					}
-					else
-					{
-						if (IndexActual == 0)
-						{
-							GameState.castleBK = false;
-						}
-						else if (IndexActual == 7)
-						{
-							GameState.castleBQ = false;
-						}
-					}
-				}
-			}
+            //Manejo los enrroques en funcion aparte
+            CastlingManager(pieceType, pieceColor, IndexActual, NewIndex);
 
 			//muevo la pieza
 			squares[(int)NewIndex] = squares[IndexActual];
@@ -391,6 +356,8 @@ namespace ChessLogic
 				if (GameState.castleWK) //verifico KinkSide
 				{
                     bool isValid = true;
+					//verifico que la torre no se haya movido
+					if (squares[63] != (Piece.White | Piece.Rook)) isValid = false;
 					//cerificar que no hayan piezas entre el rey y la torre
 					for (int i = 61; i < 63; i++)
                     {
@@ -400,6 +367,7 @@ namespace ChessLogic
 							break;
 						}
 					}
+
 					if (isValid)
 					{
 						castlingMoves.Add(62);
@@ -408,6 +376,7 @@ namespace ChessLogic
 				if (GameState.castleWQ) //verifico QueenSide
 				{
                     bool isValid = true;
+                    if(squares[56] != (Piece.White | Piece.Rook)) isValid = false;
 					for (int i = 57; i < 60; i++)
 					{
 						if (squares[i] != 0)
@@ -427,6 +396,7 @@ namespace ChessLogic
 				if (GameState.castleBK)
 				{
                     bool isValid = true;
+					if (squares[7] != (Piece.Black | Piece.Rook)) isValid = false;
 					for (int i = 5; i < 7; i++)
 					{
 						if (squares[i] != 0)
@@ -443,6 +413,7 @@ namespace ChessLogic
 				if (GameState.castleBQ)
 				{
 					bool isValid = true;
+					if (squares[0] != (Piece.Black | Piece.Rook)) isValid = false;
 					for (int i = 0; i < 4; i++)
 					{
 						if (squares[i] != 0)
@@ -472,5 +443,77 @@ namespace ChessLogic
 			}
 			return false;
         }
-    }
+
+        private static void CastlingManager(int pieceType, int pieceColor, int IndexActual, int NewIndex)
+        {
+			//Desactivo los enrroques segun corresponda
+			if (pieceType == Piece.King || pieceType == Piece.Rook)
+			{
+				//verifico si se movió el rey o la torre
+				if (pieceType == Piece.King)
+				{
+					if (pieceColor == Piece.White)
+					{
+                        if(GameState.castleWK && NewIndex == 62)
+                        {
+                            //enrroque KingSide, muevo la torre
+                            squares[63] = 0;
+							squares[61] = Piece.White | Piece.Rook;
+						}
+                        else if (GameState.castleWQ && NewIndex == 58)
+						{
+                            squares[56] = 0;
+                            squares[58] = Piece.White | Piece.Rook;
+						}
+
+						GameState.castleWK = false;
+						GameState.castleWQ = false;
+					}
+					else
+					{
+						if (GameState.castleBK && NewIndex == 6)
+						{
+							squares[7] = 0;
+							squares[5] = Piece.Black | Piece.Rook;
+						}
+						else if (GameState.castleBQ && NewIndex == 2)
+						{
+							squares[0] = 0;
+							squares[2] = Piece.Black | Piece.Rook;
+						}
+
+						GameState.castleBK = false;
+						GameState.castleBQ = false;
+					}
+				}
+				else
+				{
+					if (pieceColor == Piece.White)
+					{
+						if (IndexActual == 56)
+						{
+							GameState.castleWQ = false;
+						}
+						else if (IndexActual == 63)
+						{
+							GameState.castleWK = false;
+						}
+					}
+					else
+					{
+						if (IndexActual == 0)
+						{
+							GameState.castleBQ = false;
+						}
+						else if (IndexActual == 7)
+						{
+							GameState.castleBK = false;
+						}
+					}
+				}
+			}
+
+
+		}
+	}
 }
