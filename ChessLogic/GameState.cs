@@ -21,6 +21,10 @@ namespace ChessLogic
 		private static string ActualFern = string.Empty;
 		public static int? EnPassant { get; set; } = null;
 		public static int HalfMoves = 0;
+		public static bool castleWK = true;
+		public static bool castleWQ = true;
+		public static bool castleBK = true;
+		public static bool castleBQ = true;
 
 		public static void InitGame()
 		{

@@ -156,7 +156,8 @@ namespace ChessLogic
             //chequeo que la pieza seleccionada sea del color correspondiente
             int pieceCode = squares[IndexActual];
             int pieceColor = pieceCode & Piece.ColorMask;
-            int? PossibleEnPassant = null;
+            int pieceType = pieceCode & Piece.PieceMask;
+			int? PossibleEnPassant = null;
             bool? isOnLastRank = null;
 
 			if (pieceColor != GameState.getState())
@@ -177,7 +178,7 @@ namespace ChessLogic
 			}
 
             //la posicion es valida, primero verifico en caso de que sea un peon para validar los movimientos en passant
-            if ((pieceCode & Piece.PieceMask) == 1)
+            if (pieceType == Piece.Pawn)
             {
                 //verifico que se esté intentando campturar en passant
                 if (NewIndex == GameState.EnPassant)
@@ -196,16 +197,59 @@ namespace ChessLogic
                 isOnLastRank = (pieceColor == Piece.White && NewIndex >= 0 && NewIndex <= 7) ||
                                      (pieceColor == Piece.Black && NewIndex >= 56 && NewIndex <= 63);
 			}
-
 			//setear el en passant
             GameState.EnPassant = PossibleEnPassant;
+
+			//Desactivo los enrroques segun corresponda
+			if (pieceType == Piece.King || pieceType == Piece.Rook)
+            {
+				//verifico si se movió el rey o la torre
+				if (pieceType == Piece.King)
+				{
+					if (pieceColor == Piece.White)
+                    {
+					    GameState.castleWK = false;
+					    GameState.castleWQ = false;
+                    }
+                    else
+                    {
+                        GameState.castleBK = false;
+					    GameState.castleBQ = false;
+                    }
+				}
+				else
+				{
+					if (pieceColor == Piece.White)
+					{
+						if (IndexActual == 56)
+						{
+							GameState.castleWK = false;
+						}
+						else if (IndexActual == 63)
+						{
+							GameState.castleWQ = false;
+						}
+					}
+					else
+					{
+						if (IndexActual == 0)
+						{
+							GameState.castleBK = false;
+						}
+						else if (IndexActual == 7)
+						{
+							GameState.castleBQ = false;
+						}
+					}
+				}
+			}
 
 			//muevo la pieza
 			squares[(int)NewIndex] = squares[IndexActual];
             squares[IndexActual] = 0;
 
 			//en caso de capturar una pieza o mover un peon, actualizo los movimientos
-            if (squares[NewIndex] != 0 || (pieceCode & Piece.PieceMask) == 1)
+            if (squares[NewIndex] != 0 || pieceType == Piece.Pawn)
 			{
 				GameState.HalfMoves = 0;
 			}
@@ -274,6 +318,14 @@ namespace ChessLogic
                 }
             }
 
+            if(pieceType == Piece.King)
+            {
+                List<int> castlingMoves = new List<int>();
+                castlingMoves = GetCastlingMoves(pieceColor);
+
+                posibleMovements.AddRange(castlingMoves);
+			}
+
             return posibleMovements.ToArray();
         }
 
@@ -331,7 +383,82 @@ namespace ChessLogic
 			return posibleMovements.ToArray();
 		}
 
-
+        private static List<int> GetCastlingMoves(int pieceColor)
+		{
+			List<int> castlingMoves = new List<int>();
+			if (pieceColor == Piece.White)//la pieza es blanca
+			{
+				if (GameState.castleWK) //verifico KinkSide
+				{
+                    bool isValid = true;
+					//cerificar que no hayan piezas entre el rey y la torre
+					for (int i = 61; i < 63; i++)
+                    {
+						if (squares[i] != 0)
+						{
+							isValid = false;
+							break;
+						}
+					}
+					if (isValid)
+					{
+						castlingMoves.Add(62);
+					}
+				}
+				if (GameState.castleWQ) //verifico QueenSide
+				{
+                    bool isValid = true;
+					for (int i = 57; i < 60; i++)
+					{
+						if (squares[i] != 0)
+						{
+							isValid = false;
+							break;
+						}
+					}
+					if (isValid)
+					{
+						castlingMoves.Add(58);
+					}
+				}
+			}
+			else
+			{
+				if (GameState.castleBK)
+				{
+                    bool isValid = true;
+					for (int i = 5; i < 7; i++)
+					{
+						if (squares[i] != 0)
+						{
+							isValid = false;
+							break;
+						}
+					}
+					if (isValid)
+					{
+						castlingMoves.Add(6);
+					}
+				}
+				if (GameState.castleBQ)
+				{
+					bool isValid = true;
+					for (int i = 0; i < 4; i++)
+					{
+						if (squares[i] != 0)
+						{
+							isValid = false;
+							break;
+						}
+					}
+					if (isValid)
+					{
+						castlingMoves.Add(2);
+					}
+				}
+			}
+			return castlingMoves;
+		}
 
 		private static bool ValidMoveCheck(int IndexActual, int NewIndex)
         {
