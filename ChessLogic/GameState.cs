@@ -25,6 +25,8 @@ namespace ChessLogic
 		public static bool castleWQ = true;
 		public static bool castleBK = true;
 		public static bool castleBQ = true;
+		public static bool WhiteInCheck = false;
+		public static bool BlackInCheck = false;
 
 		public static void InitGame()
 		{

@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using System.Runtime.CompilerServices;
 
 namespace ChessLogic
@@ -44,7 +45,10 @@ namespace ChessLogic
 
         public static int[] squares = new int[64];
 
-        static Board()
+		//evento para mandar mensajes al UI
+		public static event Action<string>? OnInfoMessage;
+
+		static Board()
         {
             LoadStartingBoard();
         }
@@ -177,14 +181,21 @@ namespace ChessLogic
 				throw new InvalidOperationException("Se ha alcanzado el límite de 50 movimientos sin capturas o movimientos de peones.");
 			}
 
-            /*
+            //verifico que el movimiento no deje al rey en jaque
+            if (CheckChecker(pieceColor, IndexActual, NewIndex))
+            {
+				throw new InvalidOperationException("Movimiento Inválido. Rey en jaque.");
+			}
+
+
+			/*
              * 
              * A PARTIR DE ESTE PUNTO EL MOVIMIENTO ES VALIDO
              * 
              */
 
-            //la posicion es valida, primero verifico en caso de que sea un peon para validar los movimientos en passant
-            if (pieceType == Piece.Pawn)
+			//la posicion es valida, primero verifico en caso de que sea un peon para validar los movimientos en passant
+			if (pieceType == Piece.Pawn)
             {
                 //verifico que se esté intentando campturar en passant
                 if (NewIndex == GameState.EnPassant)
@@ -206,7 +217,7 @@ namespace ChessLogic
 			//setear el en passant
             GameState.EnPassant = PossibleEnPassant;
 
-            //Manejo los enrroques en funcion aparte
+            //Manejo los enrroques en funcion aparte TODO: verificar los posibles jaques por donde pasa el rey
             CastlingManager(pieceType, pieceColor, IndexActual, NewIndex);
 
 			//muevo la pieza
@@ -230,13 +241,47 @@ namespace ChessLogic
 				squares[NewIndex] = pieceColor | Piece.Queen;
 			}
 
+			//verifico el jaque
+			//color es el color del rey que puede estar en jaque, si blanco acaba de mover entonces color negro
+			if (CheckChecker(pieceColor == Piece.White ? Piece.Black : Piece.White))
+            {
+                if (pieceType == Piece.White)
+                {
+                    if (!GameState.WhiteInCheck)
+				        OnInfoMessage?.Invoke("¡Jaque!");
+
+                    GameState.WhiteInCheck = true;
+                }
+                else
+                {
+					if (!GameState.BlackInCheck)
+						OnInfoMessage?.Invoke("¡Jaque!");
+
+					GameState.BlackInCheck = true;
+                }
+			}
+            else
+            {
+				if (pieceType == Piece.White)
+				{
+					GameState.WhiteInCheck = false;
+				}
+				else
+				{
+					GameState.BlackInCheck = false;
+				}
+			}
+
 			GameState.ChangeTurn();
 
         }
 
-        public static int[] GetPosibleMovements(int square)
+		//se le puede pasar un array de squares para chequear o en su defecto se chequea el array de squares original
+		public static int[] GetPosibleMovements(int square, int[]? squaresSource = null)
         {
-            int pieceCode = squares[square];
+			squaresSource ??= squares;
+
+			int pieceCode = squaresSource[square];
             int pieceType = pieceCode & Piece.PieceMask;
             int pieceColor = pieceCode & Piece.ColorMask;
 
@@ -262,11 +307,11 @@ namespace ChessLogic
 
                 if (slide[pieceType - 1])
                 {
-					while (targetPosition != -1 && (squares[targetPosition] == 0 || ((squares[targetPosition] & Piece.ColorMask) != pieceColor)))
+					while (targetPosition != -1 && (squaresSource[targetPosition] == 0 || ((squaresSource[targetPosition] & Piece.ColorMask) != pieceColor)))
                     {
                         posibleMovements.Add(targetPosition);
 
-						if (squares[targetPosition] != 0) // si hay una pieza en la posición destino me voy despues de agregarla
+						if (squaresSource[targetPosition] != 0) // si hay una pieza en la posición destino me voy despues de agregarla
 							break;
 
 						aux = aux + move;
@@ -276,7 +321,7 @@ namespace ChessLogic
                 }
                 else
                 {
-                    if ( squares[targetPosition] == 0 || ((squares[targetPosition] & Piece.ColorMask) != pieceColor) )
+                    if ( squaresSource[targetPosition] == 0 || ((squaresSource[targetPosition] & Piece.ColorMask) != pieceColor) )
                     {
                         posibleMovements.Add(targetPosition);
                     }
@@ -515,6 +560,66 @@ namespace ChessLogic
 			}
 
 
+		}
+
+        //color es el color del rey que puede estar en jaque, si negro acaba de mover entonces color el blanco
+        private static bool AtackingCheckChecker(int index, int color)
+        {
+            int[] moves = GetPosibleMovements(index);
+
+            foreach (int move in moves)
+            {
+                if (squares[move] == (color | Piece.King))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        //color es el color del rey a chequear
+        private static bool CheckChecker(int color, int? IndexActual = null, int? NewIndex = null)
+        {
+            int[] squaresAux = [];
+
+            //en caso de que el movimiento no haya sido hecho lo imito en un aux
+            if(IndexActual != null && NewIndex != null)
+            { 
+                squaresAux = (int[])squares.Clone();
+
+			    //imito el movimiento
+			    squaresAux[(int)NewIndex] = squaresAux[(int)IndexActual];
+			    squaresAux[(int)IndexActual] = 0;
+            }
+            else
+            {
+                squaresAux = squares;
+			}
+
+
+			//recorrer todos los cuadros
+			for (int i = 0; i < 64; i++)
+            {
+				//si no esta vacio
+				if (squaresAux[i] != 0 && (squaresAux[i] & Piece.ColorMask) != color)
+                {
+                    //obtener los posibles movimientos de la pieza
+                    int[] moves = GetPosibleMovements(i, squaresAux);
+
+                    //recorrer todos los posibles movimientos
+                    foreach (int move in moves)
+                    {
+                        //si alguno de los movimientos corresponde al rey del color buscado
+                        if (squaresAux[move] == (color | Piece.King))
+                        {
+                            return true;
+						}
+                    }
+                }
+            }
+
+            return false;
 		}
 	}
 }

@@ -25,6 +25,12 @@ namespace ChessUI
 			InitializeComponent();
 			InitializeBoard();
 			DrawBoard();
+
+			//subscribirse al evento del Board para mandar mensajes
+			Board.OnInfoMessage += (mensaje) =>
+			{
+				MessageBox.Show(mensaje);
+			};
 		}
 
 		private void InitializeBoard()
@@ -157,6 +163,16 @@ namespace ChessUI
 					border.Background = Brushes.Transparent;
 				}
 			}
+		}
+
+		protected override void OnClosed(EventArgs e)
+		{
+			base.OnClosed(e);
+			//desuscribirse del evento
+			Board.OnInfoMessage -= (mensaje) =>
+			{
+				MessageBox.Show(mensaje);
+			};
 		}
 	}
 }
