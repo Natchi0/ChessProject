@@ -123,7 +123,7 @@ namespace ChessUI
 		{
 			//obtener arreglo de movimientos posibles
 			int[] moves = new int[0];
-			moves = Board.GetPosibleMovements(index);
+			moves = Board.GetPosiblePieceMovements(index, null, true);
 
 			if (moves.Length == 0) return;
 

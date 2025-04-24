@@ -50,14 +50,21 @@ namespace ChessLogic
 
 		static Board()
         {
-            LoadStartingBoard();
+            LoadStartingBoard("rnbqkbnr/pppp1ppp/B7/4p3/4P3/8/PPPP1PPP/RNBQK1NR b KQkq -0 1");
         }
 
-        public static void LoadStartingBoard()
+        public static void LoadStartingBoard(string? fen = null)
         {
-            string startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -0 1";
-            LoadPositionFromFen(startFen);
-
+            if(fen != null)
+			{
+				LoadPositionFromFen(fen);
+				return;
+			}
+            else
+            {
+                string startFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq -0 1";
+                LoadPositionFromFen(startFen);
+            }
         }
 
         public static void LoadPositionFromFen(string fen)
@@ -163,14 +170,15 @@ namespace ChessLogic
             int pieceType = pieceCode & Piece.PieceMask;
 			int? PossibleEnPassant = null;
             bool? isOnLastRank = null;
+			int colorEnemigo = pieceColor == Piece.White ? Piece.Black : Piece.White;
 
 			//if (pieceColor != GameState.getState())
-   //         {
-   //             throw new InvalidOperationException($"No es el turno de {(pieceColor == 8 ? "Blanco" : "Negro")}");
-   //         }
+			//         {
+			//             throw new InvalidOperationException($"No es el turno de {(pieceColor == 8 ? "Blanco" : "Negro")}");
+			//         }
 
-            //chequeo que la nueva posición sea válida
-            if (!ValidMoveCheck(IndexActual, NewIndex))
+			//chequeo que la nueva posición sea válida
+			if (!ValidMoveCheck(IndexActual, NewIndex))
             {
                 return;
             }
@@ -182,7 +190,7 @@ namespace ChessLogic
 			}
 
             //verifico que el movimiento no deje al rey en jaque
-            if (CheckChecker(pieceColor, IndexActual, NewIndex))
+            if (CheckChecker(pieceColor, IndexActual, NewIndex, pieceType))
             {
 				throw new InvalidOperationException("Movimiento Inválido. Rey en jaque.");
 			}
@@ -217,7 +225,7 @@ namespace ChessLogic
 			//setear el en passant
             GameState.EnPassant = PossibleEnPassant;
 
-            //Manejo los enrroques en funcion aparte TODO: verificar los posibles jaques por donde pasa el rey
+            //Manejo los enrroques en funcion aparte
             CastlingManager(pieceType, pieceColor, IndexActual, NewIndex);
 
 			//muevo la pieza
@@ -245,24 +253,32 @@ namespace ChessLogic
 			//color es el color del rey que puede estar en jaque, si blanco acaba de mover entonces color negro
 			if (CheckChecker(pieceColor == Piece.White ? Piece.Black : Piece.White))
             {
-                if (pieceType == Piece.White)
+                //chequeo si es mate
+                if(MateChecker(pieceColor == Piece.White ? Piece.Black : Piece.White))
+                {
+                    string color = pieceColor == Piece.White ? "Blanco" : "Negro";
+					OnInfoMessage?.Invoke($"¡JAQUE MATE! \n {color} gana");
+				}
+
+				//si no es mate, aviso que hay jaque
+				if (colorEnemigo == Piece.White)
                 {
                     if (!GameState.WhiteInCheck)
-				        OnInfoMessage?.Invoke("¡Jaque!");
+				        OnInfoMessage?.Invoke($"¡{colorEnemigo} está en Jaque!");
 
                     GameState.WhiteInCheck = true;
                 }
                 else
                 {
 					if (!GameState.BlackInCheck)
-						OnInfoMessage?.Invoke("¡Jaque!");
+						OnInfoMessage?.Invoke($"¡{colorEnemigo} está en Jaque!");
 
 					GameState.BlackInCheck = true;
                 }
 			}
             else
             {
-				if (pieceType == Piece.White)
+				if (colorEnemigo == Piece.White)
 				{
 					GameState.WhiteInCheck = false;
 				}
@@ -277,7 +293,7 @@ namespace ChessLogic
         }
 
 		//se le puede pasar un array de squares para chequear o en su defecto se chequea el array de squares original
-		public static int[] GetPosibleMovements(int square, int[]? squaresSource = null)
+		public static int[] GetPosiblePieceMovements(int square, int[]? squaresSource = null, bool withCastle = false)
         {
 			squaresSource ??= squares;
 
@@ -287,14 +303,13 @@ namespace ChessLogic
 
             if (pieceType == Piece.Pawn) //los movimientos del peon son muy particular, lo muevo a otra funcion para que quede mas limpio
             {
-                return GetPosiblePawnMovements(square, pieceCode, pieceType, pieceColor);
+                return GetPosiblePawnMovements(square, pieceCode, pieceType, pieceColor, squaresSource);
 			}
 
             List<int> posibleMovements = new List<int>();
 
             int[] moves = offset[pieceType - 1];//resto uno ya que las piezas empiezan en 1
 
-            int actualPosition = Array.IndexOf(mailbox, square);
             int valPos64 = mailbox64[square];
 
             foreach (int move in moves)
@@ -328,7 +343,7 @@ namespace ChessLogic
                 }
             }
 
-            if(pieceType == Piece.King)
+            if(pieceType == Piece.King && withCastle)
             {
                 List<int> castlingMoves = new List<int>();
                 castlingMoves = GetCastlingMoves(pieceColor);
@@ -339,7 +354,7 @@ namespace ChessLogic
             return posibleMovements.ToArray();
         }
 
-        private static int[] GetPosiblePawnMovements(int square, int pieceCode, int pieceType, int pieceColor)
+        private static int[] GetPosiblePawnMovements(int square, int pieceCode, int pieceType, int pieceColor, int[] squaresSource)
         {
 			List<int> posibleMovements = new List<int>();
 			int colorMultiplier = pieceColor == Piece.ColorMask ? -1 : 1; //asigno todos los valores y multiplico segun el color de la pieza
@@ -348,14 +363,13 @@ namespace ChessLogic
 			int leftCapture = 9 * colorMultiplier;
 			int rightCapture = 11 * colorMultiplier;
 
-			int actualPosition = Array.IndexOf(mailbox, square);
 			int valPos64 = mailbox64[square];
 
 
 			//chequeo el movimiento hacia adelante de la primera casilla
 			int oneStepIndex = valPos64 + oneStep;
 			int oneStepTarget = mailbox[oneStepIndex];
-			bool canAdvanceOne = oneStepTarget != -1 && squares[oneStepTarget] == 0;
+			bool canAdvanceOne = oneStepTarget != -1 && squaresSource[oneStepTarget] == 0;
 
             if (canAdvanceOne)
             {
@@ -371,7 +385,7 @@ namespace ChessLogic
 					int twoStepIndex = valPos64 + twoStep;
 					int twoStepTarget = mailbox[twoStepIndex];
 
-					if (twoStepTarget != -1 && squares[twoStepTarget] == 0)
+					if (twoStepTarget != -1 && squaresSource[twoStepTarget] == 0)
 					{
 						posibleMovements.Add(twoStepTarget);
 					}
@@ -384,7 +398,7 @@ namespace ChessLogic
 				int captureIndex = valPos64 + capture;
 				int captureTarget = mailbox[captureIndex];
 
-				if (captureTarget != -1 && ((squares[captureTarget] != 0 && (squares[captureTarget] & Piece.ColorMask) != pieceColor) || captureTarget == GameState.EnPassant))
+				if (captureTarget != -1 && ((squaresSource[captureTarget] != 0 && (squaresSource[captureTarget] & Piece.ColorMask) != pieceColor) || captureTarget == GameState.EnPassant))
 				{
 					posibleMovements.Add(captureTarget);
 				}
@@ -393,84 +407,82 @@ namespace ChessLogic
 			return posibleMovements.ToArray();
 		}
 
-        private static List<int> GetCastlingMoves(int pieceColor)
+		private static HashSet<int> GetAttackedSquares(int pieceColor, int[]? squaresSource = null)
 		{
-			List<int> castlingMoves = new List<int>();
-			if (pieceColor == Piece.White)//la pieza es blanca
-			{
-				if (GameState.castleWK) //verifico KinkSide
-				{
-                    bool isValid = true;
-					//verifico que la torre no se haya movido
-					if (squares[63] != (Piece.White | Piece.Rook)) isValid = false;
-					//cerificar que no hayan piezas entre el rey y la torre
-					for (int i = 61; i < 63; i++)
-                    {
-						if (squares[i] != 0)
-						{
-							isValid = false;
-							break;
-						}
-					}
+			squaresSource ??= squares;
+			HashSet<int> attackedSquares = new HashSet<int>();
 
-					if (isValid)
-					{
-						castlingMoves.Add(62);
-					}
-				}
-				if (GameState.castleWQ) //verifico QueenSide
+			for (int i = 0; i < 64; i++)
+			{
+				if (squaresSource[i] != 0 && (squaresSource[i] & Piece.ColorMask) == pieceColor)
 				{
-                    bool isValid = true;
-                    if(squares[56] != (Piece.White | Piece.Rook)) isValid = false;
-					for (int i = 57; i < 60; i++)
+					int[] moves = GetPosiblePieceMovements(i, squaresSource);
+					foreach (int move in moves)
 					{
-						if (squares[i] != 0)
-						{
-							isValid = false;
-							break;
-						}
-					}
-					if (isValid)
-					{
-						castlingMoves.Add(58);
+						attackedSquares.Add(move);
 					}
 				}
 			}
-			else
+
+			return attackedSquares;
+		}
+
+		private static bool IsSquareAttacked(int square, int pieceColor, HashSet<int> attackedSquares)
+		{
+			return attackedSquares.Contains(square);
+		}
+
+		private static List<int> GetCastlingMoves(int pieceColor)
+		{
+			List<int> castlingMoves = new List<int>();
+			int colorEnemigo = pieceColor == Piece.White ? Piece.Black : Piece.White;
+
+			//precomputar los ataques del enemigo
+			HashSet<int> enemyAttackedSquares = GetAttackedSquares(colorEnemigo);
+
+			if (pieceColor == Piece.White && !GameState.WhiteInCheck)//la pieza es blanca
+			{
+				if (GameState.castleWK) //verifico KinkSide
+				{
+					bool isValid = squares[63] == (Piece.White | Piece.Rook) &&
+						squares[61] == 0 && squares[62] == 0 &&
+						!enemyAttackedSquares.Contains(61) &&
+						!enemyAttackedSquares.Contains(62);
+
+					if (isValid)
+						castlingMoves.Add(62);
+				}
+				if (GameState.castleWQ) //verifico QueenSide
+				{
+					bool isValid = squares[56] == (Piece.White | Piece.Rook) &&
+						squares[57] == 0 && squares[58] == 0 && squares[59] == 0 &&
+						!enemyAttackedSquares.Contains(57) &&
+						!enemyAttackedSquares.Contains(58) &&
+						!enemyAttackedSquares.Contains(59);
+
+					if (isValid) castlingMoves.Add(58);
+				}
+			}
+			else if (pieceColor == Piece.Black && !GameState.BlackInCheck)
 			{
 				if (GameState.castleBK)
 				{
-                    bool isValid = true;
-					if (squares[7] != (Piece.Black | Piece.Rook)) isValid = false;
-					for (int i = 5; i < 7; i++)
-					{
-						if (squares[i] != 0)
-						{
-							isValid = false;
-							break;
-						}
-					}
-					if (isValid)
-					{
-						castlingMoves.Add(6);
-					}
+					bool isValid = squares[7] == (Piece.Black | Piece.Rook) &&
+						squares[5] == 0 && squares[6] == 0 &&
+						!enemyAttackedSquares.Contains(5) &&
+						!enemyAttackedSquares.Contains(6);
+
+					if (isValid) castlingMoves.Add(6);
 				}
 				if (GameState.castleBQ)
 				{
-					bool isValid = true;
-					if (squares[0] != (Piece.Black | Piece.Rook)) isValid = false;
-					for (int i = 1; i < 4; i++)
-					{
-						if (squares[i] != 0)
-						{
-							isValid = false;
-							break;
-						}
-					}
-					if (isValid)
-					{
-						castlingMoves.Add(2);
-					}
+					bool isValid = squares[0] == (Piece.Black | Piece.Rook) &&
+						squares[1] == 0 && squares[2] == 0 && squares[3] == 0 &&
+						!enemyAttackedSquares.Contains(1) &&
+						!enemyAttackedSquares.Contains(2) &&
+						!enemyAttackedSquares.Contains(3);
+
+					if (isValid) castlingMoves.Add(2);
 				}
 			}
 			return castlingMoves;
@@ -478,7 +490,7 @@ namespace ChessLogic
 
 		private static bool ValidMoveCheck(int IndexActual, int NewIndex)
         {
-            int[] moves = GetPosibleMovements(IndexActual);
+            int[] moves = GetPosiblePieceMovements(IndexActual);
 			foreach (int move in moves)
 			{
 				if (move == NewIndex)
@@ -489,7 +501,6 @@ namespace ChessLogic
 			return false;
         }
 
-        //TODO: Verificar que no haya jaque en ninguna de las posiciones por las que pasa el rey
         private static void CastlingManager(int pieceType, int pieceColor, int IndexActual, int NewIndex)
         {
 			//Desactivo los enrroques segun corresponda
@@ -562,36 +573,31 @@ namespace ChessLogic
 
 		}
 
-        //color es el color del rey que puede estar en jaque, si negro acaba de mover entonces color el blanco
-        private static bool AtackingCheckChecker(int index, int color)
-        {
-            int[] moves = GetPosibleMovements(index);
-
-            foreach (int move in moves)
-            {
-                if (squares[move] == (color | Piece.King))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         //color es el color del rey a chequear
-        private static bool CheckChecker(int color, int? IndexActual = null, int? NewIndex = null)
+        private static bool CheckChecker(int color, int? IndexActual = null, int? NewIndex = null, int? pieceType = null)
         {
             int[] squaresAux = [];
+			int colorEnemigo = color == Piece.White ? Piece.Black : Piece.White;
 
-            //en caso de que el movimiento no haya sido hecho lo imito en un aux
-            if(IndexActual != null && NewIndex != null)
+			//en caso de que el movimiento no haya sido hecho lo imito en un aux
+			if (IndexActual != null && NewIndex != null)
             { 
                 squaresAux = (int[])squares.Clone();
 
 			    //imito el movimiento
 			    squaresAux[(int)NewIndex] = squaresAux[(int)IndexActual];
 			    squaresAux[(int)IndexActual] = 0;
-            }
+
+				if (pieceType == Piece.Pawn)
+				{
+					//verifico que se esté intentando campturar en passant
+					if (NewIndex == GameState.EnPassant)
+					{
+						//captura en passant
+						squaresAux[(int)NewIndex + (color == Piece.White ? 8 : -8)] = 0;
+					}
+				}
+			}
             else
             {
                 squaresAux = squares;
@@ -602,10 +608,10 @@ namespace ChessLogic
 			for (int i = 0; i < 64; i++)
             {
 				//si no esta vacio
-				if (squaresAux[i] != 0 && (squaresAux[i] & Piece.ColorMask) != color)
+				if (squaresAux[i] != 0 && (squaresAux[i] & Piece.ColorMask) == colorEnemigo)
                 {
                     //obtener los posibles movimientos de la pieza
-                    int[] moves = GetPosibleMovements(i, squaresAux);
+                    int[] moves = GetPosiblePieceMovements(i, squaresAux, false);
 
                     //recorrer todos los posibles movimientos
                     foreach (int move in moves)
@@ -620,6 +626,29 @@ namespace ChessLogic
             }
 
             return false;
+		}
+
+        private static bool MateChecker(int color)
+		{
+			//recorrer todos los cuadros
+			for (int i = 0; i < 64; i++)
+			{
+				//si no esta vacio
+				if (squares[i] != 0 && (squares[i] & Piece.ColorMask) == color)
+				{
+					//obtener los posibles movimientos de la pieza
+					int[] moves = GetPosiblePieceMovements(i);
+					//recorrer todos los posibles movimientos
+					foreach (int move in moves)
+					{
+						if (!CheckChecker(color, i, move))
+						{
+							return false;
+						}
+					}
+				}
+			}
+			return true;
 		}
 	}
 }
