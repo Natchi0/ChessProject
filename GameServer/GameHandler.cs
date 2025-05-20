@@ -224,14 +224,14 @@ namespace GameServer
 		{
 			if (!Games.TryGetValue(gameId, out var game))
 				throw new InvalidOperationException($"El juego con ID {gameId} no existe.");
-
+			Console.WriteLine("Intentando hacer Movimiento");
 			try
 			{
-				game.Board?.HandlePieceMovement(fromIndex, toIndex);
-				game.ChangeTurn();
+				game.HandlePieceMovement(fromIndex, toIndex);
 			}
 			catch (Exception ex)
 			{
+				await TrySendMessage(gameId, playerId, $"Error al mover la pieza: {ex.Message}");
 				throw new Exception("Movimiento inválido", ex);
 			}
 

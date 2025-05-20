@@ -21,7 +21,7 @@ namespace ChessUtilsLib
 	//mascara para extraer tipo y color
 	public static class PieceMasks
 	{
-		public const int PieceMask = 7;
+		public const int TypeMask = 7;
 		public const int ColorMask = 8;
 	}
 
