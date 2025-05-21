@@ -33,6 +33,7 @@ namespace DAL.Models
 		public int? EnPassantTargetColor { get; set; }
 
 		public int HalfMoves { get; set; } = 0;
+		public int Turns { get; set; } = 0; //TODO: ver si es necesario, en esta version no se usa
 
 		public bool CastleWK { get; set; } = true;
 		public bool CastleWQ { get; set; } = true;
@@ -46,6 +47,7 @@ namespace DAL.Models
 		{
 			State = EState.WhiteTurn;
 			HalfMoves = 0;
+			Turns = 0;
 			Board.InitBoard();
 			BoardState = Board.GetSquares();
 		}
@@ -121,7 +123,8 @@ namespace DAL.Models
 				CastleWQ = this.CastleWQ,
 				CastleBK = this.CastleBK,
 				CastleBQ = this.CastleBQ,
-				HalfMove = this.HalfMoves
+				HalfMove = this.HalfMoves,
+				Turns = this.Turns
 			};
 
 			try
@@ -137,7 +140,7 @@ namespace DAL.Models
 				CastleBK = result.CastleBK;
 				CastleBQ = result.CastleBQ;
 				HalfMoves = result.NewHalfMove;
-
+				Turns = result.NewTurns;
 			}
 			catch (Exception ex)
 			{

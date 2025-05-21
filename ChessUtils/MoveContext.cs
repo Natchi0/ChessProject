@@ -19,6 +19,7 @@ namespace ChessUtilsLib
 		public bool CastleBK { get; set; }
 		public bool CastleBQ { get; set; }
 		public int HalfMove { get; set; }
+		public int Turns { get; set; }
 	}
 
 	public class MoveResult
@@ -31,5 +32,6 @@ namespace ChessUtilsLib
 		public bool CastleBK { get; set; }
 		public bool CastleBQ { get; set; }
 		public int NewHalfMove { get; set; }
+		public int NewTurns { get; set; }
 	}
 }

@@ -79,7 +79,7 @@ namespace GameServer
 						await SendMessage(ws, "Falta el campo 'Type'.");
 						continue;
 					}
-
+					Console.WriteLine("mensaje socket recivido");
 					var type = typeProp.GetString();
 
 					//Enrutar segun el tipo
@@ -136,6 +136,7 @@ namespace GameServer
 		//enviar un mensaje a un websocket
 		private static async Task SendMessage(WebSocket ws, string message)
 		{
+			Console.WriteLine($"ENVIANDO MENSAJE: {message}");
 			var bytes = Encoding.UTF8.GetBytes(message);
 			await ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, CancellationToken.None);
 		}
@@ -224,7 +225,7 @@ namespace GameServer
 		{
 			if (!Games.TryGetValue(gameId, out var game))
 				throw new InvalidOperationException($"El juego con ID {gameId} no existe.");
-			Console.WriteLine("Intentando hacer Movimiento");
+
 			try
 			{
 				game.HandlePieceMovement(fromIndex, toIndex);
@@ -241,7 +242,7 @@ namespace GameServer
 			{
 				GameId = game.Id,
 				Game = game,
-				MovNum = game.HalfMoves,
+				MovNum = game.Turns,
 				PlayerId = playerId,
 				Movement = new int[] { fromIndex, toIndex }
 			});

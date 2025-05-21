@@ -10,7 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 ConfigureServices(builder.Services, builder.Configuration);
 
 var app = builder.Build();
-app.UseWebSockets();
+//app.UseWebSockets();
 
 ConfigureMiddleware(app);
 ConfigureEndpoints(app);
@@ -25,14 +25,27 @@ void ConfigureServices(IServiceCollection services, ConfigurationManager config)
 	services.AddDbContextFactory<AppDbContext>(options =>
 		options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
+	//GameHandler en un singleton
 	services.AddSingleton<GameHandler>();
+
+	//cors
+	services.AddCors(options =>
+	{
+		options.AddPolicy(name: "defaultPolicy", policy =>
+		{
+			policy.AllowAnyHeader()
+				.AllowAnyMethod()
+				.AllowAnyOrigin();
+		});
+	});
 }
 
 //middleware
 void ConfigureMiddleware(WebApplication app)
 {
+	app.UseCors("defaultPolicy");
 	app.UseWebSockets();
-	app.Urls.Add("http://localhost:6666");
+	//app.Urls.Add("http://localhost:6666");
 }
 
 //endpoints de la aplicacion
@@ -57,6 +70,7 @@ void ConfigureEndpoints(WebApplication app)
 	//crear un nuevo juego
 	app.MapPost("/createGame", async ([FromServices] GameHandler handler, [FromServices] IDbContextFactory<AppDbContext> dbContextFactory, [FromBody] CreateGameRequest request) =>
 	{
+		Console.WriteLine("alca");
 		//verificar que los ids no sean iguales
 		if (request.Id1 == request.Id2)
 		{

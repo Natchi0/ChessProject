@@ -98,6 +98,7 @@ namespace ChessUtilsLib
 			}
 
 			//actualizar los enrroques
+			//Esta funcion actualiza los valores del enroque directamente en context, cuando regresa de la funcion ya tiene los nuevos valores
 			CastlingManager(pieceType, pieceColor, actualIndex, newIndex, context);
 
 			//muevo la pieza
@@ -111,8 +112,13 @@ namespace ChessUtilsLib
 				squares[newIndex] = pieceColor | PieceType.Queen;
 			}
 
-			//verificar el jaque en el game o algo
+			//guardo los ultimos valores del result
 			result.NewBoardState = squares;
+			result.CastleWK = context.CastleWK;
+			result.CastleWQ = context.CastleWQ;
+			result.CastleBK = context.CastleBK;
+			result.CastleBQ = context.CastleBQ;
+			result.NewTurns = context.Turns + 1;
 
 			return result;
 		}
