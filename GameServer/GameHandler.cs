@@ -5,10 +5,8 @@ using DAL.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net.WebSockets;
-using System.Reflection.Metadata;
 using System.Text;
 using System.Text.Json;
-using static Azure.Core.HttpHeader;
 
 namespace GameServer
 {
@@ -26,7 +24,6 @@ namespace GameServer
 		//en caso de que por algun motivo no se borraran al finalizar
 		private readonly Dictionary<int, Game> Games = new();
 
-		//private readonly Dictionary<(int gameId, int playerId), WebSocket> ConnectedSockets = new();
 		private readonly List<PlayerConnection> PlayerConnections = new();
 
 		//TODO: el manejo de la base no va aca, es para las pruebas
@@ -79,7 +76,6 @@ namespace GameServer
 						await SendMessage(ws, "Falta el campo 'Type'.");
 						continue;
 					}
-					Console.WriteLine("mensaje socket recivido");
 					var type = typeProp.GetString();
 
 					//Enrutar segun el tipo
@@ -121,12 +117,7 @@ namespace GameServer
 		private async Task TrySendMessage(int gameId, int playerId, string message)
 		{
 			var connection = PlayerConnections.FirstOrDefault(c => c.GameId == gameId && c.PlayerId == playerId && c.WebSocket.State == WebSocketState.Open);
-			//verificar que el socket del jugador este conectado
-			//if (ConnectedSockets.TryGetValue((gameId, playerId), out var ws) && ws.State == WebSocketState.Open)
-			//{
-			//	//enviar el mensaje
-			//	await SendMessage(ws, message);
-			//}
+
 			if (connection != null)
 			{
 				await SendMessage(connection.WebSocket, message);
@@ -184,7 +175,6 @@ namespace GameServer
 			}
 
 			//guardo la coneccion de este jugador con este juego
-			//ConnectedSockets[(join.GameId, join.PlayerId)] = ws;
 			PlayerConnections.Add(new PlayerConnection
 			{
 				PlayerId = join.PlayerId,
@@ -209,7 +199,6 @@ namespace GameServer
 				return;
 			}
 
-			//TODO: tambien verificar que el juego no haya terminado y que los dos jugadores estén conectados
 			try
 			{
 				await MakeMove(connection.GameId, connection.PlayerId, move.FromIndex, move.ToIndex);
@@ -226,16 +215,14 @@ namespace GameServer
 			if (!Games.TryGetValue(gameId, out var game))
 				throw new InvalidOperationException($"El juego con ID {gameId} no existe.");
 
-			try
-			{
-				game.HandlePieceMovement(fromIndex, toIndex);
-			}
-			catch (Exception ex)
-			{
-				await TrySendMessage(gameId, playerId, $"Error al mover la pieza: {ex.Message}");
-				throw new Exception("Movimiento inválido", ex);
-			}
+			//consigo el color del jugador - Id1 es blanco, Id2 es negro
+			var playerColor = game.PlayerId1 == playerId ? PieceColor.White : PieceColor.Black;
 
+			//intento procesar el movimiento
+			game.HandlePieceMovement(fromIndex, toIndex, playerColor);
+
+			//guardo en la base
+			//TODO: usar alguna cola o algo para mandar los cambios a la base de datos
 			using var context = _contextFactory.CreateDbContext();
 			context.Games.Update(game);
 			context.Moves.Add(new Move
@@ -248,6 +235,7 @@ namespace GameServer
 			});
 			await context.SaveChangesAsync();
 
+			//envio el nuevo estado del juego
 			var json = JsonSerializer.Serialize(game);
 
 			await TrySendMessage(gameId, (int)game.PlayerId1, json);

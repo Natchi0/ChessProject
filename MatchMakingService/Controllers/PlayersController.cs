@@ -10,7 +10,9 @@ using DAL.Models;
 
 namespace MatchMakingService.Controllers
 {
-    [Route("api/[controller]")]
+	//ESTO ESTA EN EL SERVIDOR DE MATCHMAKING TEMPORALMENTE
+	//TODO: Crear microservicio para el manejo de jugadores
+	[Route("api/[controller]")]
     [ApiController]
     public class PlayersController : ControllerBase
     {

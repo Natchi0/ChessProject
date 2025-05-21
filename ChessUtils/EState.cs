@@ -27,4 +27,15 @@ namespace ChessUtilsLib
 		//Player1Win,
 		//Player2Win,
 	}
+
+	public enum EMatchRequestStatus
+	{
+		None,
+		Waiting,
+		Accepted,
+		Rejected,
+		Canceled,
+		Timeout,
+		Error,
+	}
 }

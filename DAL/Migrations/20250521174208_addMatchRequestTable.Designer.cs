@@ -4,6 +4,7 @@ using DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250521174208_addMatchRequestTable")]
+    partial class addMatchRequestTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -99,7 +102,7 @@ namespace DAL.Migrations
                     b.Property<int?>("GameId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("MatchedPlayerId")
+                    b.Property<int?>("MatchedWith")
                         .HasColumnType("int");
 
                     b.Property<int>("PlayerId")
@@ -114,8 +117,6 @@ namespace DAL.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("GameId");
-
-                    b.HasIndex("MatchedPlayerId");
 
                     b.HasIndex("PlayerId");
 
@@ -451,10 +452,6 @@ namespace DAL.Migrations
                         .WithMany()
                         .HasForeignKey("GameId");
 
-                    b.HasOne("DAL.Models.Player", "MatchedWith")
-                        .WithMany()
-                        .HasForeignKey("MatchedPlayerId");
-
                     b.HasOne("DAL.Models.Player", "Player")
                         .WithMany()
                         .HasForeignKey("PlayerId")
@@ -462,8 +459,6 @@ namespace DAL.Migrations
                         .IsRequired();
 
                     b.Navigation("Game");
-
-                    b.Navigation("MatchedWith");
 
                     b.Navigation("Player");
                 });

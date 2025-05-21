@@ -77,22 +77,27 @@ namespace DAL.Models
 			}
 		}
 
-		public void HandlePieceMovement(int actualIndex, int newIndex)
+		public void HandlePieceMovement(int actualIndex, int newIndex, int playerColor)
 		{
 			//chequear que la pieza seleccionada sea del color correspondiente
 			var (pieceCode, pieceColor, pieceType) = Board.GetPieceAt(actualIndex);
 			int enemyColor = pieceColor == PieceColor.White ? PieceColor.Black : PieceColor.White;
 
-			//if(pieceColor != getState())
-			//{
-			//	throw new Exception("No es tu turno");
-			//}
+			if (playerColor != getState())
+			{
+				throw new Exception("No es tu turno");
+			}
+
+			if(playerColor != pieceColor)
+			{
+				throw new Exception("No puedes mover una pieza que no es tuya");
+			}
 
 			//chequear que la nueva posicion sea valida
 			bool isValid = IsMoveValid(actualIndex, newIndex, pieceType);
 			if (!isValid)
 			{
-				throw new Exception("Ex: El movimiento es invalido");
+				throw new Exception("El movimiento es invalido");
 			}
 
 			//verifico no haber llegado a los 50 movimientos
