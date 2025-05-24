@@ -22,73 +22,21 @@ namespace MatchMakingService.Controllers
             _context = context;
         }
 
-		// POST: api/MatchRequests/Request/5
-		[HttpPost("Request/{playerId}")]
-		public async Task<IActionResult> RequestMatch(int playerId)
+		//GET: api/MatchRequests/ClearAll
+		[HttpGet("ClearAll")]
+		public async Task<ActionResult> ClearAllMatchRequests()
 		{
-			//chequear que el jugador exista
-            var player = await _context.Players.FindAsync(playerId);
-			if (player == null)
-			{
-				return NotFound("El jugador no existe");
-			}
+			var matchRequests = await _context.MatchRequests.ToListAsync();
+			_context.MatchRequests.RemoveRange(matchRequests);
 
-            //evitar que el jugador pida un match si ya tiene una en waiting
-            var existingRequest = await _context.MatchRequests
-                .Where(mr => mr.PlayerId == playerId && mr.Status == EMatchRequestStatus.Waiting)
-                .FirstOrDefaultAsync();
+            var games = await _context.Games.ToListAsync();
+			_context.Games.RemoveRange(games);
 
-            if(existingRequest != null)
-            {
-				//TODO: ver como manejar esto, si el jugador ya tiene una request en waiting
-				//puedo devolver la request existente
-				return Ok(existingRequest);
-            }
+            var moves = await _context.Moves.ToListAsync();
+			_context.Moves.RemoveRange(moves);
 
-            //verificar que el jugador no tenga mas de 5 juegos activos 
-            var activeGames = await _context.Games
-                .Where(g => (g.PlayerId1 == playerId || g.PlayerId2 == playerId) && g.State != EState.Finished)
-                .ToArrayAsync();
-
-            if (activeGames.Length >= 5)
-            {
-				return BadRequest("El jugador ya tiene 5 juegos activos");
-			}
-
-			//buscar una match request en waiting, la mas vieja - FIFO
-			//TODO: ver como mejorar el matchmaking eligiendo segun nivel y todo eso
-            var matchRequest = await _context.MatchRequests
-                .Where(mr => mr.Status == EMatchRequestStatus.Waiting)
-                .OrderBy(mr => mr.RequestedAt)
-				.FirstOrDefaultAsync();
-
-            if (matchRequest != null)
-            {
-				//hay una request en waiting, la emparejo con el jugador
-                //TODO: ver lo del gameId, tengo que llamar GameServer y eso
-				matchRequest.MatchedPlayerId = playerId;
-				matchRequest.Status = EMatchRequestStatus.Accepted;
-				matchRequest.GameId = null; //no tengo el gameId aun
-                matchRequest.MatchedWith = player;
-
-				_context.MatchRequests.Update(matchRequest);
-				await _context.SaveChangesAsync();
-
-                return Ok(matchRequest);
-			}
-
-			//si no se fue es porque no hay match requests en waiting, creo una
-			matchRequest = new MatchRequest
-            {
-				PlayerId = playerId,
-				RequestedAt = DateTime.UtcNow,
-				Status = EMatchRequestStatus.Waiting,
-			};
-
-			_context.MatchRequests.Add(matchRequest);
 			await _context.SaveChangesAsync();
-
-			return CreatedAtAction(nameof(GetMatchRequest), new { id = matchRequest.Id }, matchRequest);
+			return Ok("Todas las match, games y moves fueron borrados.");
 		}
 
 		// GET: api/MatchRequests

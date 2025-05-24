@@ -5,19 +5,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
 
-//endopont por defecto ws://localhost:5093 | http://localhost:5093
 var builder = WebApplication.CreateBuilder(args);
 ConfigureServices(builder.Services, builder.Configuration);
 
 var app = builder.Build();
-//app.UseWebSockets();
 
 ConfigureMiddleware(app);
 ConfigureEndpoints(app);
 
 app.Run();
 
-//configura los servicios de la aplicacion, como la base de datos y el GameHandler
 void ConfigureServices(IServiceCollection services, ConfigurationManager config)
 {
 	//DbContextFactoy se usa para crear instancias sin romper los singletons y cosas asi
@@ -25,52 +22,36 @@ void ConfigureServices(IServiceCollection services, ConfigurationManager config)
 	services.AddDbContextFactory<AppDbContext>(options =>
 		options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
-	//GameHandler en un singleton
 	services.AddSingleton<GameHandler>();
 
-	//cors
 	services.AddCors(options =>
 	{
 		options.AddPolicy(name: "defaultPolicy", policy =>
 		{
-			policy.AllowAnyHeader()
-				.AllowAnyMethod()
-				.AllowAnyOrigin();
+			policy.WithOrigins("http://localhost:5173")
+			  .AllowAnyHeader()
+			  .AllowAnyMethod()
+			  .AllowCredentials();
 		});
 	});
+
+	services.AddSignalR();
 }
 
-//middleware
 void ConfigureMiddleware(WebApplication app)
 {
 	app.UseCors("defaultPolicy");
 	app.UseWebSockets();
-	//app.Urls.Add("http://localhost:6666");
 }
 
-//endpoints de la aplicacion
 //Apis minimas ya que no son muchos endpoints
 void ConfigureEndpoints(WebApplication app)
 {
-	//endpoint para el websocket
-	//dentro del metodo se maneja la coneccion y los tipos de mensajes, join, makeMove, etc
-	app.MapGet("/", async context =>
-	{
-		if (!context.WebSockets.IsWebSocketRequest)
-		{
-			context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-			return;
-		}
-
-		var ws = await context.WebSockets.AcceptWebSocketAsync();
-		var gameHandler = context.RequestServices.GetRequiredService<GameHandler>();
-		await gameHandler.HandleWebSocket(ws);
-	});
+	app.MapHub<GameHub>("/gameHub");
 
 	//crear un nuevo juego
 	app.MapPost("/createGame", async ([FromServices] GameHandler handler, [FromServices] IDbContextFactory<AppDbContext> dbContextFactory, [FromBody] CreateGameRequest request) =>
 	{
-		Console.WriteLine("alca");
 		//verificar que los ids no sean iguales
 		if (request.Id1 == request.Id2)
 		{
@@ -81,6 +62,8 @@ void ConfigureEndpoints(WebApplication app)
 		using var db = dbContextFactory.CreateDbContext();
 		var player1Exists = await db.Players.AnyAsync(p => p.Id == request.Id1);
 		var player2Exists = await db.Players.AnyAsync(p => p.Id == request.Id2);
+
+		Console.WriteLine("CREANDO JUEGO");
 
 		if (!player1Exists || !player2Exists)
 		{

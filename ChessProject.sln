@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DAL", "DAL\DAL.csproj", "{C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameServer", "GameServer\GameServer.csproj", "{E1D8CA4C-0484-4EDA-B964-4A40C933E14D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SocketService", "SocketService\SocketService.csproj", "{410571B1-7E3B-4553-B31F-718600C29A1C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{E1D8CA4C-0484-4EDA-B964-4A40C933E14D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E1D8CA4C-0484-4EDA-B964-4A40C933E14D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E1D8CA4C-0484-4EDA-B964-4A40C933E14D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{410571B1-7E3B-4553-B31F-718600C29A1C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{410571B1-7E3B-4553-B31F-718600C29A1C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{410571B1-7E3B-4553-B31F-718600C29A1C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{410571B1-7E3B-4553-B31F-718600C29A1C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
