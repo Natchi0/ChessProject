@@ -74,4 +74,6 @@ void ConfigureEndpoints(WebApplication app)
 		return Results.Ok(result);
 	});
 
+	app.MapGet("/", () => { return "Game Server is running"; });
+
 }

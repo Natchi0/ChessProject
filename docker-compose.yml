@@ -1,0 +1,68 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=StrongPassword123!
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "echo", "SQL Server is running"]
+      interval: 1s
+      timeout: 10s
+      retries: 1
+
+  rabbitmq:
+    image: rabbitmq:4.1.0-management
+    container_name: 'rabbitmq'
+    ports:
+      - 5672:5672
+      - 15672:15672
+    volumes:
+      - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+      - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  gameserver:
+    image: ${DOCKER_REGISTRY-}gameserver
+    build:
+      context: .
+      dockerfile: GameServer/Dockerfile
+    ports:
+      - "5000:8080"
+      # - "5001:5001"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+  
+  matchmakingservice:
+    image: ${DOCKER_REGISTRY-}matchmakingservice
+    build:
+      context: .
+      dockerfile: MatchMakingService/Dockerfile
+    ports:
+        - "5002:8080"
+        # - "5003:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - sqlserver
+
+  socketservice:
+    image: ${DOCKER_REGISTRY-}socketservice
+    build:
+      context: .
+      dockerfile: SocketService/Dockerfile
+    ports:
+      - "5004:8080"
+      # - "5005:8081"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+
+volumes:
+  sqlserver-data:
+
+
