@@ -15,6 +15,7 @@ WORKDIR /src
 COPY ["MatchMakingService/MatchMakingService.csproj", "MatchMakingService/"]
 COPY ["ChessUtils/ChessUtilsLib.csproj", "ChessUtils/"]
 COPY ["DAL/DAL.csproj", "DAL/"]
+COPY ["Shared.Shared.csproj", "Shared/"]
 RUN dotnet restore "./MatchMakingService/MatchMakingService.csproj"
 COPY . .
 WORKDIR "/src/MatchMakingService"

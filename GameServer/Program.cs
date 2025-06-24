@@ -3,10 +3,12 @@ using DAL.DTOs;
 using GameServer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Shared;
 using System.Net;
+using System.Threading.Tasks;
 
 var builder = WebApplication.CreateBuilder(args);
-ConfigureServices(builder.Services, builder.Configuration);
+await ConfigureServices(builder.Services, builder.Configuration);
 
 var app = builder.Build();
 
@@ -15,7 +17,7 @@ ConfigureEndpoints(app);
 
 app.Run();
 
-void ConfigureServices(IServiceCollection services, ConfigurationManager config)
+async Task ConfigureServices(IServiceCollection services, ConfigurationManager config)
 {
 	//DbContextFactoy se usa para crear instancias sin romper los singletons y cosas asi
 	//ya que se crean por cada request y asi se evitan compartir contextos entre distintas peticiones o hilos
@@ -36,12 +38,15 @@ void ConfigureServices(IServiceCollection services, ConfigurationManager config)
 	});
 
 	services.AddSignalR();
+
+	//inicializar RabbitMQ
+	string rabbitHost = config["RabbitMQ:HostName"]!;
+	await RabbitMQInitializer.SetupAsync(rabbitHost);
 }
 
 void ConfigureMiddleware(WebApplication app)
 {
 	app.UseCors("defaultPolicy");
-	app.UseWebSockets();
 }
 
 //Apis minimas ya que no son muchos endpoints

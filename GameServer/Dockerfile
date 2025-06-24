@@ -15,6 +15,7 @@ WORKDIR /src
 COPY ["GameServer/GameServer.csproj", "GameServer/"]
 COPY ["ChessUtils/ChessUtilsLib.csproj", "ChessUtils/"]
 COPY ["DAL/DAL.csproj", "DAL/"]
+COPY ["Shared.Shared.csproj", "Shared"]
 RUN dotnet restore "./GameServer/GameServer.csproj"
 COPY . .
 WORKDIR "/src/GameServer"

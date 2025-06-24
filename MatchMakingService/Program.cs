@@ -4,6 +4,7 @@ using MatchMakingService.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Shared;
 using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -58,6 +59,10 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("defaultPolicy");
+
+//inicializar RabbitMQ
+string rabbitHost = builder.Configuration["RabbitMQ:HostName"]!;
+await RabbitMQInitializer.SetupAsync(rabbitHost);
 
 app.MapIdentityApi<IdentityUser<int>>();
 

@@ -1,4 +1,7 @@
+using RabbitMQ.Client;
 using SocketService;
+using SocketService.BackgroundServices;
+using SocketService.MessageServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,12 +16,15 @@ builder.Services.AddCors(options =>
 	});
 });
 
-builder.Services.AddSignalR(); 
+builder.Services.AddSignalR();
+
+//RabbitMQ 
+builder.Services.AddSingleton<IMessageBusClient, MessageBusClient>();
+builder.Services.AddHostedService<RabbitMQInitializer>();
 
 var app = builder.Build();
 
 app.UseCors("defaultPolicy");
-
 
 //app.UseHttpsRedirection();
 
