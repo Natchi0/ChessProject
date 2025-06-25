@@ -41,11 +41,12 @@ namespace MatchMakingService.Services
 			Console.WriteLine($"El jugador no tiene una request en waiting");
 
 			//verificar que el jugador no tenga mas de 5 juegos activos 
+			//TODO: Esto no tendra efecto hasta que logre implementar que un jugador tenga mas de una partida al mismo tiempo
 			var activeGames = await _context.Games
 				.Where(g => (g.PlayerId1 == playerId || g.PlayerId2 == playerId) && g.State != EState.Finished)
 				.ToListAsync();
 
-			if (activeGames.Count >= 5)
+			if (activeGames.Count >= 1)//cambiar a 5, el 1 es temporal
 			{
 				Console.WriteLine($"EL JUGADRO TIENE {activeGames.Count} GAMES");
 				throw new Exception("El jugador ya tiene 5 juegos activos");
@@ -67,6 +68,7 @@ namespace MatchMakingService.Services
 					Id2 = playerId
 				};
 
+				//TODO: cambiar para usar rabbit
 				var gameResponse = await _httpClient.PostAsJsonAsync("http://localhost:5093/createGame", gameRequest);
 				if (!gameResponse.IsSuccessStatusCode)
 					throw new Exception("Error al crear el juego");
@@ -84,7 +86,7 @@ namespace MatchMakingService.Services
 				_context.MatchRequests.Update(matchRequest);
 				await _context.SaveChangesAsync();
 
-				//conneciones de ambos jugadores
+				//coneciones de ambos jugadores
 				var con1 = ConnectionMapping.GetConnectionId(matchRequest.PlayerId);
 				var con2 = connectionId;
 

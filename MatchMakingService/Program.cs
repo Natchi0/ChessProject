@@ -1,10 +1,11 @@
 using DAL;
 using MatchMakingService;
+using MatchMakingService.BackgroundServices;
+using MatchMakingService.MessageServices;
 using MatchMakingService.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using Shared;
 using Swashbuckle.AspNetCore.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,6 +29,10 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSignalR();
+
+//agregar RabbitMQ
+builder.Services.AddSingleton<IMessageBusClient, MessageBusClient>();
+builder.Services.AddHostedService<RabbitMQInitializer>();
 
 builder.Services.AddControllers();
 
@@ -59,10 +64,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("defaultPolicy");
-
-//inicializar RabbitMQ
-string rabbitHost = builder.Configuration["RabbitMQ:HostName"]!;
-await RabbitMQInitializer.SetupAsync(rabbitHost);
 
 app.MapIdentityApi<IdentityUser<int>>();
 
