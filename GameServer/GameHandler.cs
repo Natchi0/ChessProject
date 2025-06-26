@@ -34,17 +34,17 @@ namespace GameServer
 			//esto es para que no se pierdan los juegos al reiniciar el servidor
 			//TODO: esto se debe expandir cuando se añada soporte para varias instancias del GameServer
 			//ademas debo asegurarme que el cliente se encargue se intentar la reconeccion
-			using var context = _contextFactory.CreateDbContext();
-			var games = context.Games
-				.Where(g => g.State != EState.Finished)
-				.ToList();
+			//using var context = _contextFactory.CreateDbContext();
+			//var games = context.Games
+			//	.Where(g => g.State != EState.Finished)
+			//	.ToList();
 
-			foreach (var game in games)
-			{
-				game.Board = new Board();
-				game.Board.SetSquares(game.BoardState);
-				Games.Add(game.Id, game);
-			}
+			//foreach (var game in games)
+			//{
+			//	game.Board = new Board();
+			//	game.Board.SetSquares(game.BoardState);
+			//	Games.Add(game.Id, game);
+			//}
 
 			Console.WriteLine($"Cargados {Games.Count} juegos de la base de datos.");
 		}

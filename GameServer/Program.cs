@@ -57,6 +57,7 @@ void ConfigureEndpoints(WebApplication app)
 	//crear un nuevo juego
 	app.MapPost("/createGame", async ([FromServices] GameHandler handler, [FromServices] IDbContextFactory<AppDbContext> dbContextFactory, [FromBody] CreateGameRequest request) =>
 	{
+		Console.WriteLine("CREANDO JUEGO Paso1");
 		//verificar que los ids no sean iguales
 		if (request.Id1 == request.Id2)
 		{
@@ -68,7 +69,7 @@ void ConfigureEndpoints(WebApplication app)
 		var player1Exists = await db.Players.AnyAsync(p => p.Id == request.Id1);
 		var player2Exists = await db.Players.AnyAsync(p => p.Id == request.Id2);
 
-		Console.WriteLine("CREANDO JUEGO");
+		Console.WriteLine("CREANDO JUEGO Paso 2");
 
 		if (!player1Exists || !player2Exists)
 		{

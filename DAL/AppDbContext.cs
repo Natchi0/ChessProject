@@ -11,23 +11,23 @@ namespace DAL
 	{
 		public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
 		{
-			try
-			{
-				var databaseCreator = Database.GetService<IDatabaseCreator>() as RelationalDatabaseCreator;
-				if (databaseCreator != null )
-				{
-					if (!databaseCreator.CanConnect())
-						databaseCreator.Create();
-					if (!databaseCreator.HasTables())
-					{
-						databaseCreator.CreateTables();
-					}
-				}
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine($"Error creando la base de datos: {ex.Message}");
-			}
+			//try
+			//{
+			//	var databaseCreator = Database.GetService<IDatabaseCreator>() as RelationalDatabaseCreator;
+			//	if (databaseCreator != null )
+			//	{
+			//		if (!databaseCreator.CanConnect())
+			//			databaseCreator.Create();
+			//		if (!databaseCreator.HasTables())
+			//		{
+			//			databaseCreator.CreateTables();
+			//		}
+			//	}
+			//}
+			//catch (Exception ex)
+			//{
+			//	Console.WriteLine($"Error creando la base de datos: {ex.Message}");
+			//}
 		}
 
 		public DbSet<Player> Players { get; set; }

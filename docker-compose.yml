@@ -37,6 +37,9 @@ services:
       # - "5001:5001"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - sqlserver
+      - rabbitmq
   
   matchmakingservice:
     image: ${DOCKER_REGISTRY-}matchmakingservice
@@ -50,6 +53,7 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
     depends_on:
       - sqlserver
+      - rabbitmq
 
   socketservice:
     image: ${DOCKER_REGISTRY-}socketservice
@@ -61,6 +65,9 @@ services:
       # - "5005:8081"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - sqlserver
+      - rabbitmq
 
 volumes:
   sqlserver-data:

@@ -1,6 +1,6 @@
 ﻿using Shared;
 
-namespace MatchMakingService.Dtos
+namespace SocketService.Dtos
 {
 	public class MatchFoundPublishDto
 	{

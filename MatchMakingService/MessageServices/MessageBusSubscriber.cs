@@ -1,8 +1,11 @@
 ﻿
+using ChessUtilsLib;
+using DAL.Models;
 using MatchMakingService.Dtos;
 using MatchMakingService.Services;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Shared;
 using System.Text;
 using System.Text.Json;
 
@@ -11,14 +14,16 @@ namespace MatchMakingService.MessageServices
 	public class MessageBusSubscriber : IMessageBusSubscriber
 	{
 		private readonly IConfiguration _configuration;
-		private readonly MatchService _matchService;
+		private readonly IMessageBusClient _messageBusClient;
+		private readonly IServiceProvider _serviceProvider;
 		private IConnection _connection;
 		private IChannel _channel;
 
-		public MessageBusSubscriber(IConfiguration configuration, MatchService matchService)
+		public MessageBusSubscriber(IConfiguration configuration, IMessageBusClient messageBusClient, IServiceProvider serviceProvider)
 		{
 			_configuration = configuration;
-			_matchService = matchService;
+			_messageBusClient = messageBusClient;
+			_serviceProvider = serviceProvider;
 		}
 
 		public async Task StartConsumingAsync()
@@ -62,18 +67,27 @@ namespace MatchMakingService.MessageServices
 
 					if(requestMatch != null)
 					{
-						await _matchService.RequestMatch(requestMatch.PlayerId, requestMatch.ConnectionId)
-							.ContinueWith(task =>
+						using var scope = _serviceProvider.CreateScope();
+						var matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
+
+						RequestMatchInfoDto matchRequest = await matchService.RequestMatch(requestMatch.PlayerId, requestMatch.ConnectionId);
+
+						//si hay match info significa que se hizo match y hay que notificar
+						if (matchRequest.MatchInfo != null)
+						{
+							var matchInfo = matchRequest.MatchInfo;
+
+							MatchFoundPublishDto matchPublishDto = new MatchFoundPublishDto
 							{
-								if (task.IsFaulted)
-								{
-									Console.WriteLine($"Error processing match request: {task.Exception?.Message}");
-								}
-								else
-								{
-									Console.WriteLine($"Match request processed successfully for player {requestMatch.PlayerId}");
-								}
-							});
+								Player1Id = matchInfo.Player1Id,
+								Player2Id = matchInfo.Player2Id,
+								GameId = matchInfo.GameId,
+								BoardState = matchInfo.BoardState,
+								Event = ERoutingKey.MatchFound
+							};
+
+							await _messageBusClient.PublishMatchFoundAsync(matchPublishDto);
+						}
 					}
 
 					break;

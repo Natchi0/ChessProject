@@ -20,7 +20,11 @@ namespace SocketService.MessageServices
 
 		public async Task InitializeAsync()
 		{
-			var factory = new ConnectionFactory {HostName = _configuration["RabbitMQ:HostName"]!, Port = int.Parse(_configuration["RabbitMQ:Port"]!) };
+			var factory = new ConnectionFactory 
+			{
+				HostName = _configuration["RabbitMQ:HostName"]!,
+				Port = int.Parse(_configuration["RabbitMQ:Port"]!) 
+			};
 
 			_connection = await factory.CreateConnectionAsync();
 			_channel = await _connection.CreateChannelAsync();

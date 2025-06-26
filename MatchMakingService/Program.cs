@@ -32,6 +32,7 @@ builder.Services.AddSignalR();
 
 //agregar RabbitMQ
 builder.Services.AddSingleton<IMessageBusClient, MessageBusClient>();
+builder.Services.AddSingleton<IMessageBusSubscriber, MessageBusSubscriber>();
 builder.Services.AddHostedService<RabbitMQInitializer>();
 
 builder.Services.AddControllers();

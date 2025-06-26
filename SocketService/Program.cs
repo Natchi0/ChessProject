@@ -20,6 +20,7 @@ builder.Services.AddSignalR();
 
 //RabbitMQ 
 builder.Services.AddSingleton<IMessageBusClient, MessageBusClient>();
+builder.Services.AddSingleton<IMessageBusSubscriber, MessageBusSubscriber>();
 builder.Services.AddHostedService<RabbitMQInitializer>();
 
 var app = builder.Build();
