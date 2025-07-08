@@ -6,5 +6,6 @@ namespace MatchMakingService.MessageServices
 	{
 		Task InitializeAsync();
 		Task PublishMatchFoundAsync(MatchFoundPublishDto matchFoundPublishDto);
+		Task PublishCreateGameAsync(CreateGameDto createGameDto);
 	}
 }

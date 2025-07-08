@@ -1,9 +1,9 @@
-﻿using MatchMakingService.Dtos;
+﻿using GameServer.Dtos;
 using RabbitMQ.Client;
 using System.Text;
 using System.Text.Json;
 
-namespace MatchMakingService.MessageServices
+namespace GameServer.MessageServices
 {
 	public class MessageBusClient : IMessageBusClient
 	{
@@ -63,42 +63,18 @@ namespace MatchMakingService.MessageServices
 			Console.WriteLine("MessageBusClient desechado correctamente.");
 		}
 
-		public async Task PublishMatchFoundAsync(MatchFoundPublishDto matchFoundPublishDto)
+		public async Task PublishGameCreatedAsync(GameCreatedDto gameCreatedDto)
 		{
-			var message = JsonSerializer.Serialize(matchFoundPublishDto);
+			var message = JsonSerializer.Serialize(gameCreatedDto);
 
 			if (!_connection.IsOpen)
 			{
 				Console.WriteLine("La coneccion esta cerrada, no se puede enviar");
 			}
 
-			Console.WriteLine($"Publicando mensaje: {message}");
-
 			try
 			{
-				await PublishMessage(message, matchFoundPublishDto.Event);
-			}
-			catch(Exception ex)
-			{
-				Console.WriteLine($"no se pudo enviar el mensaje. Excepcion: {ex}");
-			}
-		}
-
-
-		public async Task PublishCreateGameAsync(CreateGameDto createGameDto)
-		{
-			var message = JsonSerializer.Serialize(createGameDto);
-
-			if (!_connection.IsOpen)
-			{
-				Console.WriteLine("La coneccion esta cerrada, no se puede enviar");
-			}
-
-			Console.WriteLine($"Publicando mensaje: {message}");
-
-			try
-			{
-				await PublishMessage(message, createGameDto.Event);
+				await PublishMessage(message, gameCreatedDto.Event);
 			}
 			catch (Exception ex)
 			{

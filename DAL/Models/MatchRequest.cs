@@ -20,5 +20,15 @@ namespace DAL.Models
 		public Player? MatchedWith { get; set; }
 		public int? GameId { get; set; }
 		public Game? Game { get; set; }
+
+		public static MatchRequest CreateWaiting(int playerId)
+		{
+			return new MatchRequest
+			{
+				PlayerId = playerId,
+				RequestedAt = DateTime.UtcNow,
+				Status = EMatchRequestStatus.Waiting,
+			};
+		}
 	}
 }

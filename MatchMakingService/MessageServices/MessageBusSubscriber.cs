@@ -63,37 +63,48 @@ namespace MatchMakingService.MessageServices
 			switch (routingKey)
 			{
 				case "find.match":
-					var requestMatch = JsonSerializer.Deserialize<RequestMatchPublishDto>(message);
-
-					if(requestMatch != null)
-					{
-						using var scope = _serviceProvider.CreateScope();
-						var matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
-
-						RequestMatchInfoDto matchRequest = await matchService.RequestMatch(requestMatch.PlayerId, requestMatch.ConnectionId);
-
-						//si hay match info significa que se hizo match y hay que notificar
-						if (matchRequest.MatchInfo != null)
-						{
-							var matchInfo = matchRequest.MatchInfo;
-
-							MatchFoundPublishDto matchPublishDto = new MatchFoundPublishDto
-							{
-								Player1Id = matchInfo.Player1Id,
-								Player2Id = matchInfo.Player2Id,
-								GameId = matchInfo.GameId,
-								BoardState = matchInfo.BoardState,
-								Event = ERoutingKey.MatchFound
-							};
-
-							await _messageBusClient.PublishMatchFoundAsync(matchPublishDto);
-						}
-					}
-
+					await HandleFindMatchAsync(message);
 					break;
 				default:
 					Console.WriteLine($"No handler for routing key: {routingKey}");
 					break;
+			}
+		}
+
+		private async Task HandleFindMatchAsync(string message)
+		{
+			var requestMatch = JsonSerializer.Deserialize<RequestMatchPublishDto>(message);
+
+			if (requestMatch != null)
+			{
+				try//try por si hay algun error en el service
+				{
+					using var scope = _serviceProvider.CreateScope();
+					var matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
+
+					RequestMatchInfoDto matchRequest = await matchService.RequestMatch(requestMatch.PlayerId, requestMatch.ConnectionId);
+
+					// Ensure matchRequest is properly scoped and used
+					if (matchRequest.MatchInfo != null)
+					{
+						var matchInfo = matchRequest.MatchInfo;
+
+						MatchFoundPublishDto matchPublishDto = new MatchFoundPublishDto
+						{
+							Player1Id = matchInfo.Player1Id,
+							Player2Id = matchInfo.Player2Id,
+							GameId = matchInfo.GameId,
+							BoardState = matchInfo.BoardState,
+							Event = ERoutingKey.MatchFound
+						};
+
+						await _messageBusClient.PublishMatchFoundAsync(matchPublishDto);
+					}
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($"Error processing match request: {ex.Message}");
+				}
 			}
 		}
 

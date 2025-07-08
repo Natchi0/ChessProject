@@ -1,9 +1,11 @@
 using DAL;
 using DAL.DTOs;
 using GameServer;
+using GameServer.BackgroundServices;
+using GameServer.Dtos;
+using GameServer.MessageServices;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Shared;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -20,10 +22,12 @@ app.Run();
 async Task ConfigureServices(IServiceCollection services, ConfigurationManager config)
 {
 	//DbContextFactoy se usa para crear instancias sin romper los singletons y cosas asi
-	//ya que se crean por cada request y asi se evitan compartir contextos entre distintas peticiones o hilos
+	//ya que creo instancias particulares de DbContext en vez de una compartidas en el scope.
+	//TODO: quizas debería implementar esto en otros microservicios
 	services.AddDbContextFactory<AppDbContext>(options =>
 		options.UseSqlServer(config.GetConnectionString("DefaultConnection")));
 
+	//GameHandler se encarga de la logica de los juegos en el servidor
 	services.AddSingleton<GameHandler>();
 
 	services.AddCors(options =>
@@ -39,9 +43,10 @@ async Task ConfigureServices(IServiceCollection services, ConfigurationManager c
 
 	services.AddSignalR();
 
-	//inicializar RabbitMQ
-	string rabbitHost = config["RabbitMQ:HostName"]!;
-	await RabbitMQInitializer.SetupAsync(rabbitHost);
+	//RabbitMQ 
+	services.AddSingleton<IMessageBusClient, MessageBusClient>();
+	services.AddSingleton<IMessageBusSubscriber, MessageBusSubscriber>();
+	services.AddHostedService<RabbitMQInitializer>();
 }
 
 void ConfigureMiddleware(WebApplication app)
@@ -55,19 +60,19 @@ void ConfigureEndpoints(WebApplication app)
 	app.MapHub<GameHub>("/gameHub");
 
 	//crear un nuevo juego
-	app.MapPost("/createGame", async ([FromServices] GameHandler handler, [FromServices] IDbContextFactory<AppDbContext> dbContextFactory, [FromBody] CreateGameRequest request) =>
+	app.MapPost("/createGame", async ([FromServices] GameHandler handler, [FromServices] IDbContextFactory<AppDbContext> dbContextFactory, [FromBody] CreateGameDto request) =>
 	{
 		Console.WriteLine("CREANDO JUEGO Paso1");
 		//verificar que los ids no sean iguales
-		if (request.Id1 == request.Id2)
+		if (request.Player1Id == request.Player2Id)
 		{
 			return Results.BadRequest("Los ids no pueden ser iguales");
 		}
 
 		//verificar que los jugadores existan
 		using var db = dbContextFactory.CreateDbContext();
-		var player1Exists = await db.Players.AnyAsync(p => p.Id == request.Id1);
-		var player2Exists = await db.Players.AnyAsync(p => p.Id == request.Id2);
+		var player1Exists = await db.Players.AnyAsync(p => p.Id == request.Player1Id);
+		var player2Exists = await db.Players.AnyAsync(p => p.Id == request.Player2Id);
 
 		Console.WriteLine("CREANDO JUEGO Paso 2");
 
@@ -76,7 +81,7 @@ void ConfigureEndpoints(WebApplication app)
 			return Results.BadRequest("Uno o ambos jugadores no existen");
 		}
 
-		var result = await handler.CreateGame(request.Id1, request.Id2);
+		var result = await handler.CreateGame(request.Player1Id, request.Player2Id);
 		return Results.Ok(result);
 	});
 
