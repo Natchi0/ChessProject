@@ -17,6 +17,7 @@ namespace GameServer.MessageServices
 		private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
 		private IConnection _connection;
 		private IChannel _channel;
+		private readonly Dictionary<string, Func<string, Task>> _handlers;
 
 		public MessageBusSubscriber(
 			IConfiguration configuration, 
@@ -28,6 +29,15 @@ namespace GameServer.MessageServices
 			_messageBusClient = messageBusClient;
 			_gameHandler = handler;
 			_dbContextFactory = dbContextFactory;
+
+			//manejo de eventos de mensajes mediante un diccionario de handlers para evitar usar switch
+			_handlers = new Dictionary<string, Func<string, Task>>
+			{
+				{ ERoutingKey.Move, async message => Console.WriteLine($"Move event received: {message}") },
+				{ ERoutingKey.Join, async message => Console.WriteLine($"Join event received: {message}") },
+				{ ERoutingKey.Leave, async message => Console.WriteLine($"Leave event received: {message}") },
+				{ ERoutingKey.CreateGame, HandleCreateGameAsync },
+			};
 		}
 
 		public async Task StartConsumingAsync()
@@ -63,28 +73,23 @@ namespace GameServer.MessageServices
 
 		private async Task HandleMessageAsync(string message, string routingKey)
 		{
-			switch (routingKey)
-			{
-				case "move":
-					// Handle move message
-					break;
-				case "join":
-					// Handle join message
-					break;
-				case "leave":
-					// Handle leave message
-					break;
-				case "create.game":
-					await HandleCreateGameAsync(message);
-					break;
-				default:
-					Console.WriteLine($"Unknown routing key: {routingKey}");
-					break;
-			}
+			Console.WriteLine($"Received message: {message} with routing key: {routingKey}");
+
+			// Verificar si hay un handler registrado para el routingKey
+			var handler = _handlers.FirstOrDefault(h => h.Key == routingKey).Value;
+
+			if (handler != null)
+				await handler(message);
+
+			else
+				Console.WriteLine($"No se encontró un handler para la routing key: {routingKey}");
+
+			Console.WriteLine($"Processed message: {message} with routing key: {routingKey}");
 		}
 
 		private async Task HandleCreateGameAsync(string message)
 		{
+			Console.WriteLine("Evento createGame");
 			var createGameDto = JsonSerializer.Deserialize<CreateGameDto>(message);
 
 			if (createGameDto == null)
@@ -112,6 +117,9 @@ namespace GameServer.MessageServices
 				Console.WriteLine("Error al crear el juego");
 				return;
 			}
+
+			context.Games.Add(game);
+			await context.SaveChangesAsync();
 
 			//publico el evento de juego creado
 			var gameCreatedEvent = new GameCreatedDto

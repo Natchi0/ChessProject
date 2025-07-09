@@ -63,6 +63,28 @@ namespace GameServer.MessageServices
 			Console.WriteLine("MessageBusClient desechado correctamente.");
 		}
 
+		//Esta funcion es generica, debería utilizarla en vez de los metodos especificos
+		public async Task PublishEventAsync(IEventDto eventMessage)
+		{
+			var message = JsonSerializer.Serialize(eventMessage);
+
+			if (!_connection.IsOpen)
+			{
+				Console.WriteLine("La coneccion esta cerrada, no se puede enviar");
+				return;
+			}
+
+			Console.WriteLine($"Publicando mensaje: {message} con routingKey: {eventMessage.Event}");
+			try
+			{
+				await PublishMessage(message, eventMessage.Event);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"No se pudo enviar el mensaje. Excepcion: {ex}");
+			}
+		}
+
 		public async Task PublishGameCreatedAsync(GameCreatedDto gameCreatedDto)
 		{
 			var message = JsonSerializer.Serialize(gameCreatedDto);

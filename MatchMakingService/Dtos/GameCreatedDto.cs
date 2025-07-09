@@ -1,7 +1,7 @@
 ﻿using ChessUtilsLib;
 using Shared;
 
-namespace GameServer.Dtos
+namespace MatchMakingService.Dtos
 {
 	public class GameCreatedDto : IEventDto
 	{

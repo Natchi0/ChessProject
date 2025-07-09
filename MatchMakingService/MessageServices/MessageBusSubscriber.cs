@@ -14,16 +14,38 @@ namespace MatchMakingService.MessageServices
 	public class MessageBusSubscriber : IMessageBusSubscriber
 	{
 		private readonly IConfiguration _configuration;
-		private readonly IMessageBusClient _messageBusClient;
 		private readonly IServiceProvider _serviceProvider;
 		private IConnection _connection;
 		private IChannel _channel;
+		private readonly Dictionary<string, Func<string, Task>> _handlers;
 
-		public MessageBusSubscriber(IConfiguration configuration, IMessageBusClient messageBusClient, IServiceProvider serviceProvider)
+		public MessageBusSubscriber(IConfiguration configuration, IServiceProvider serviceProvider)
 		{
 			_configuration = configuration;
-			_messageBusClient = messageBusClient;
 			_serviceProvider = serviceProvider;
+
+			//manejo de eventos de mensajes mediante un diccionario de handlers para evitar usar switch
+			_handlers = new Dictionary<string, Func<string, Task>>
+			{
+				{ ERoutingKey.FindMatch, HandleFindMatchAsync },
+				{ ERoutingKey.GameCreated, HandleGameCreated }
+			};
+		}
+
+		public void Dispose()
+		{
+			if (_channel.IsOpen)
+			{
+				_channel.CloseAsync();
+				_channel.DisposeAsync();
+			}
+			if (_connection.IsOpen)
+			{
+				_connection.CloseAsync();
+				_connection.DisposeAsync();
+			}
+
+			Console.WriteLine("MessageBusSubscriber disposed.");
 		}
 
 		public async Task StartConsumingAsync()
@@ -43,7 +65,8 @@ namespace MatchMakingService.MessageServices
 			await _channel.QueueDeclareAsync(queue: "MatchMakingQueue", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
 			//vincular colas
-			await _channel.QueueBindAsync("MatchMakingQueue", exchange, "find.match");
+			await _channel.QueueBindAsync("MatchMakingQueue", exchange, ERoutingKey.FindMatch);
+			await _channel.QueueBindAsync("MatchMakingQueue", exchange, ERoutingKey.GameCreated);
 
 			var consumer = new AsyncEventingBasicConsumer(_channel);
 			consumer.ReceivedAsync += async (model, ea) =>
@@ -60,14 +83,39 @@ namespace MatchMakingService.MessageServices
 		private async Task HanddleMessageAsync(string message, string routingKey)
 		{
 			Console.WriteLine($"Received message: {message} with routing key: {routingKey}");
-			switch (routingKey)
+
+			// Verificar si hay un handler registrado para el routingKey
+			var handler = _handlers.FirstOrDefault(h => h.Key == routingKey).Value;
+
+			if (handler != null)
+				await handler(message);
+
+			else
+				Console.WriteLine($"No se encontró un handler para la routing key: {routingKey}");
+
+			Console.WriteLine($"Processed message: {message} with routing key: {routingKey}");
+		}
+
+		private async Task HandleGameCreated(string message)
+		{
+			var gameCreated = JsonSerializer.Deserialize<GameCreatedDto>(message);
+
+			if (gameCreated == null)
 			{
-				case "find.match":
-					await HandleFindMatchAsync(message);
-					break;
-				default:
-					Console.WriteLine($"No handler for routing key: {routingKey}");
-					break;
+				Console.WriteLine("Mensaje inválido en game.created");
+				return;
+			}
+
+			try
+			{
+				using var scope = _serviceProvider.CreateScope();
+				var matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
+
+				await matchService.FinishRequestMatchProcess(gameCreated);
+			}
+			catch(Exception ex)
+			{
+				Console.WriteLine($"Error al deserializar el GameCreatedDto");
 			}
 		}
 
@@ -82,24 +130,7 @@ namespace MatchMakingService.MessageServices
 					using var scope = _serviceProvider.CreateScope();
 					var matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
 
-					RequestMatchInfoDto matchRequest = await matchService.RequestMatch(requestMatch.PlayerId, requestMatch.ConnectionId);
-
-					// Ensure matchRequest is properly scoped and used
-					if (matchRequest.MatchInfo != null)
-					{
-						var matchInfo = matchRequest.MatchInfo;
-
-						MatchFoundPublishDto matchPublishDto = new MatchFoundPublishDto
-						{
-							Player1Id = matchInfo.Player1Id,
-							Player2Id = matchInfo.Player2Id,
-							GameId = matchInfo.GameId,
-							BoardState = matchInfo.BoardState,
-							Event = ERoutingKey.MatchFound
-						};
-
-						await _messageBusClient.PublishMatchFoundAsync(matchPublishDto);
-					}
+					await matchService.RequestMatch(requestMatch.PlayerId, requestMatch.ConnectionId);
 				}
 				catch (Exception ex)
 				{
@@ -108,20 +139,5 @@ namespace MatchMakingService.MessageServices
 			}
 		}
 
-		public void Dispose()
-		{
-			if (_channel.IsOpen)
-			{
-				_channel.CloseAsync();
-				_channel.DisposeAsync();
-			}
-			if (_connection.IsOpen)
-			{
-				_connection.CloseAsync();
-				_connection.DisposeAsync();
-			}
-
-			Console.WriteLine("MessageBusSubscriber disposed.");
-		}
 	}
 }

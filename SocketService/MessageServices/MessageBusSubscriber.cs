@@ -3,6 +3,7 @@ using MatchMakingService;
 using Microsoft.AspNetCore.SignalR;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Shared;
 using SocketService.Dtos;
 using System.Text;
 using System.Text.Json;
@@ -16,11 +17,21 @@ namespace SocketService.MessageServices
 		private readonly IHubContext<MainHub> _hub;
 		private IConnection _connection;
 		private IChannel _channel;
+		private readonly Dictionary<string, Func<string, Task>> _handlers;
 
 		public MessageBusSubscriber(IConfiguration configuration, IHubContext<MainHub> hubContext)
 		{
 			_configuration = configuration;
 			_hub = hubContext;
+
+			//manejo de eventos de mensajes mediante un diccionario de handlers para evitar usar switch
+			_handlers = new Dictionary<string, Func<string, Task>>
+			{
+				{ ERoutingKey.MatchFound, HandleMatchFoundAsync },
+				{ ERoutingKey.GameUpdated, async message => Console.WriteLine($"Game updated event received: {message}") },
+				{ ERoutingKey.MoveRejected, async message => Console.WriteLine($"Move rejected event received: {message}") },
+				{ ERoutingKey.GameCreated, HandleGameCreatedAsync }
+			};
 		}
 
 		public async Task StartConsumingAsync()
@@ -42,6 +53,7 @@ namespace SocketService.MessageServices
 			await _channel.QueueBindAsync("SocketQueue", exchange, "match.found");
 			await _channel.QueueBindAsync("SocketQueue", exchange, "game.updated");
 			await _channel.QueueBindAsync("SocketQueue", exchange, "move.rejected");
+			await _channel.QueueBindAsync("SocketQueue", exchange, ERoutingKey.GameCreated);
 
 			var consumer = new AsyncEventingBasicConsumer(_channel);
 			consumer.ReceivedAsync += async (model, ea) =>
@@ -53,68 +65,6 @@ namespace SocketService.MessageServices
 			};
 
 			await _channel.BasicConsumeAsync(queue: "SocketQueue", autoAck: true, consumer: consumer);
-		}
-
-		private async Task HandleMessageAsync(string message, string routingKey)
-		{
-			Console.WriteLine($"Received message: {message} with routing key: {routingKey}");
-			switch (routingKey)
-			{
-				case "match.found":
-					await HandleMatchFoundAsync(message);
-					break;
-				case "game.updated":
-					// Handle game updated logic
-					break;
-				case "move.rejected":
-					// Handle move rejected logic
-					break;
-				default:
-					Console.WriteLine($"Unknown routing key: {routingKey}");
-					break;
-			}
-
-			Console.WriteLine($"Processed message: {message} with routing key: {routingKey}");
-			
-		}
-
-		private async Task HandleMatchFoundAsync(string message)
-		{
-			try
-			{
-				MatchFoundPublishDto? matchFound = JsonSerializer.Deserialize<MatchFoundPublishDto>(message);
-
-				if (matchFound == null)
-				{
-					throw new Exception("MatchFoundPublishDto es null o no se pudo deserializar correctamente");
-				}
-
-				var connection1 = ConnectionMapping.GetConnectionId(matchFound.Player1Id);
-				var connection2 = ConnectionMapping.GetConnectionId(matchFound.Player2Id);
-
-				var matchInfo = new
-				{
-					Player1Id = matchFound.Player1Id,
-					Player2Id = matchFound.Player2Id,
-					GameId = matchFound.GameId,
-					BoardState = matchFound.BoardState
-				};
-
-				if (connection1 != null)
-				{
-					await _hub.Clients.Client(connection1).SendAsync("MatchFound", matchFound);
-				}
-
-				if (connection2 != null)
-				{
-					await _hub.Clients.Client(connection2).SendAsync("MatchFound", matchFound);
-				}
-
-			}
-			catch(Exception ex)
-			{
-				Console.WriteLine($"Error al manejar el evento MatchFound: {ex.Message}");
-			}
 		}
 
 		public void DisposeAync()
@@ -134,5 +84,81 @@ namespace SocketService.MessageServices
 
 			Console.WriteLine("MessageBusSubscriber desechado correctamente.");
 		}
+
+		private async Task HandleMessageAsync(string message, string routingKey)
+		{
+			Console.WriteLine($"Received message: {message} with routing key: {routingKey}");
+
+			// Verificar si hay un handler registrado para el routingKey
+			var handler = _handlers.FirstOrDefault(h => h.Key == routingKey).Value;
+
+			if (handler != null)
+				await handler(message);
+			
+			else
+				Console.WriteLine($"No se encontró un handler para la routing key: {routingKey}");
+
+			Console.WriteLine($"Processed message: {message} with routing key: {routingKey}");
+			
+		}
+
+		//este evento unicamente avisa que se hizo match para cambiar la interfaz, pero el evento que inicia el jeugo es game.created
+		private async Task HandleMatchFoundAsync(string message)
+		{
+			Console.WriteLine("Evento MatchFound");
+			try
+			{
+				MatchFoundPublishDto? matchFound = JsonSerializer.Deserialize<MatchFoundPublishDto>(message);
+
+				if (matchFound == null)
+					throw new Exception("MatchFoundPublishDto es null o no se pudo deserializar correctamente");
+
+				var connection1 = ConnectionMapping.GetConnectionId(matchFound.Player1Id);
+				var connection2 = ConnectionMapping.GetConnectionId(matchFound.Player2Id);
+
+				var matchInfo = new
+				{
+					Player1Id = matchFound.Player1Id,
+					Player2Id = matchFound.Player2Id,
+				};
+
+				if (connection1 != null)
+					await _hub.Clients.Client(connection1).SendAsync("MatchFound", matchFound);
+
+				if (connection2 != null)
+					await _hub.Clients.Client(connection2).SendAsync("MatchFound", matchFound);
+
+			}
+			catch(Exception ex)
+			{
+				Console.WriteLine($"Error al manejar el evento MatchFound: {ex.Message}");
+			}
+		}
+
+		private async Task HandleGameCreatedAsync(string message)
+		{
+			try
+			{
+				GameCreatedDto? gameCreated = JsonSerializer.Deserialize<GameCreatedDto>(message);
+
+				if (gameCreated == null)
+					throw new Exception("CreateGameDto es null o no se pudo deserializar correctamente");
+				
+				var connection1 = ConnectionMapping.GetConnectionId(gameCreated.Player1Id);
+				var connection2 = ConnectionMapping.GetConnectionId(gameCreated.Player2Id);
+
+				if (connection1 != null)
+					await _hub.Clients.Client(connection1).SendAsync("GameCreated", gameCreated);
+
+				if (connection2 != null)
+					await _hub.Clients.Client(connection2).SendAsync("GameCreated", gameCreated);
+
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error al manejar el evento GameCreated: {ex.Message}");
+			}
+		}
+
 	}
 }

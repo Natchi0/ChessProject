@@ -45,22 +45,45 @@ namespace MatchMakingService.MessageServices
 			);
 		}
 
-		public void DisposeAsync()
+		//TODO: investigar mejor lo del dispose async
+		public async Task DisposeAsync()
 		{
 			Console.WriteLine("Desechando MessageBusClient...");
 
 			if (_channel.IsOpen)
 			{
-				_channel.CloseAsync();
-				_channel.DisposeAsync();
+				await _channel.CloseAsync();
+				await _channel.DisposeAsync();
 			}
 			if (_connection.IsOpen)
 			{
-				_connection.CloseAsync();
-				_connection.DisposeAsync();
+				await _connection.CloseAsync();
+				await _connection.DisposeAsync();
 			}
 
 			Console.WriteLine("MessageBusClient desechado correctamente.");
+		}
+
+		//Esta funcion es generica, debería utilizarla en vez de los metodos especificos
+		public async Task PublishEventAsync(IEventDto eventMessage)
+		{
+			var message = JsonSerializer.Serialize(eventMessage);
+
+			if (!_connection.IsOpen)
+			{
+				Console.WriteLine("La coneccion esta cerrada, no se puede enviar");
+				return;
+			}
+
+			Console.WriteLine($"Publicando mensaje: {message} con routingKey: {eventMessage.Event}");
+			try
+			{
+				await PublishMessage(message, eventMessage.Event);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"No se pudo enviar el mensaje. Excepcion: {ex}");
+			}
 		}
 
 		public async Task PublishMatchFoundAsync(MatchFoundPublishDto matchFoundPublishDto)

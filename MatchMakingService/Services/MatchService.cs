@@ -3,6 +3,7 @@ using DAL;
 using DAL.DTOs;
 using DAL.Models;
 using MatchMakingService.Dtos;
+using MatchMakingService.MessageServices;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,15 +12,19 @@ namespace MatchMakingService.Services
 	public class MatchService
 	{
 		private readonly AppDbContext _context;
+		private readonly IMessageBusClient _messageBusClient;
 		private readonly HttpClient _httpClient;
 
-		public MatchService(AppDbContext context, HttpClient httpClient)
+		public MatchService(AppDbContext context, IMessageBusClient messageBusClient, HttpClient httpClient)
 		{
 			_context = context;
+			_messageBusClient = messageBusClient;
 			_httpClient = httpClient;
 		}
 
-		public async Task<RequestMatchInfoDto> RequestMatch(int playerId, string connectionId)
+		//si no hay match request en waiting, crea una nueva y no devuelvo ningun evento ya que queda esperando
+		//si hay match request en waiting, emparejo y mando el evento de crear juego, ese despues se encarga de crear el juego y avisar al usuario
+		public async Task RequestMatch(int playerId, string connectionId)
 		{
 			if (!await PlayerExists(playerId))
 				throw new Exception("El jugador no existe");
@@ -37,62 +42,58 @@ namespace MatchMakingService.Services
 
 			if (matchRequest != null)
 			{
+				//hay una match request en waiting, la emparejo con el jugador
+				//y mando el evento al GameServer para crear el juego
 				Console.WriteLine($"Se encontro una match request en waiting: {matchRequest.Id} - PlayerId: {matchRequest.PlayerId} - MatchedPlayerId: {playerId}");
 				CreateGameDto gameRequest = new CreateGameDto
 				{
 					Player1Id = matchRequest.PlayerId,
-					Player2Id = playerId
+					Player2Id = playerId,
+					MatchRequestId = matchRequest.Id
 				};
 
-				//TODO: cambiar para usar rabbit
-				//Crear el juego
-				var gameResponse = await _httpClient.PostAsJsonAsync("http://gameserver:8080/createGame", gameRequest);
-				if (!gameResponse.IsSuccessStatusCode)
-					throw new Exception("Error al crear el juego");
+				//publicar el evento de crear juego
+				await _messageBusClient.PublishCreateGameAsync(gameRequest);
 
-				var createdGame = await gameResponse.Content.ReadFromJsonAsync<Game>();
-
-				if (createdGame == null)
-					throw new Exception("Error al deserializar el juego creado");
-				
-				//hay una request en waiting, la emparejo con el jugador
-				matchRequest.MatchedPlayerId = playerId;
-				matchRequest.Status = EMatchRequestStatus.Accepted;
-				matchRequest.GameId = createdGame.Id;
-
-				_context.MatchRequests.Update(matchRequest);
-				await _context.SaveChangesAsync();
-
-
-				//Genero la informacion de la partida qe se le enviará a los jugadores
-				MatchInfo matchInfo = new MatchInfo
+				//publicar el evento para avisar que se hizo el match
+				MatchFoundPublishDto matchFound = new MatchFoundPublishDto
 				{
 					Player1Id = matchRequest.PlayerId,
-					Player2Id = playerId,
-					GameId = createdGame.Id,
-					BoardState = createdGame.BoardState
+					Player2Id = playerId
 				};
-
-				return new RequestMatchInfoDto
-				{
-					MatchRequest = matchRequest,
-					MatchInfo = matchInfo
-				};
+				await _messageBusClient.PublishMatchFoundAsync(matchFound);
+				return;
 			}
 
+			//si no se fue es porque no hay match requests en waiting, creo una
 			Console.WriteLine("No se encontro una match request en waiting");
 
-			//si no se fue es porque no hay match requests en waiting, creo una
 			matchRequest = MatchRequest.CreateWaiting(playerId);
 
 			_context.MatchRequests.Add(matchRequest);
 			await _context.SaveChangesAsync();
+		}
 
-			return new RequestMatchInfoDto
-			{
-				MatchRequest = matchRequest,
-				MatchInfo = null
-			};
+		// Finaliza el proceso de emparejamiento una vez que se ha creado el juego
+		// esto solamente sirve para que la info en la base de datos sea consistente
+		// el mismo evento que provoca esta funcion es recivido por el SocketService para que los jugadores inicien el jeugo
+		public async Task FinishRequestMatchProcess(GameCreatedDto createdGameInfo)
+		{
+			if (createdGameInfo == null)
+				throw new ArgumentNullException(nameof(createdGameInfo), "El GameCreatedDto no puede ser nulo");
+			
+			var matchRequest = await _context.MatchRequests.FirstOrDefaultAsync(mr => mr.Id == createdGameInfo.MatchRequestId);
+			if (matchRequest == null)
+				throw new Exception("No se encontro la MatchRequest asociada al juego creado");
+
+			//actualizar la informacion del MatchRequest
+			//asigno solo el jugador2 ya que el jugador1 fue asignado al crear la MatchRequest
+			matchRequest.MatchedPlayerId ??= createdGameInfo.Player2Id;
+			matchRequest.Status = EMatchRequestStatus.Accepted;
+			matchRequest.GameId ??= createdGameInfo.GameId;
+
+			_context.MatchRequests.Update(matchRequest);
+			await _context.SaveChangesAsync();
 		}
 
 		private async Task<bool> PlayerExists(int playerId)
