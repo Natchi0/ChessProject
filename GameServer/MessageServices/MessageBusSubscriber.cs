@@ -33,10 +33,10 @@ namespace GameServer.MessageServices
 			//manejo de eventos de mensajes mediante un diccionario de handlers para evitar usar switch
 			_handlers = new Dictionary<string, Func<string, Task>>
 			{
-				{ ERoutingKey.Move, async message => Console.WriteLine($"Move event received: {message}") },
-				{ ERoutingKey.Join, async message => Console.WriteLine($"Join event received: {message}") },
-				{ ERoutingKey.Leave, async message => Console.WriteLine($"Leave event received: {message}") },
-				{ ERoutingKey.CreateGame, HandleCreateGameAsync },
+				{ RoutingKey.Move, async message => Console.WriteLine($"Move event received: {message}") },
+				{ RoutingKey.Join, async message => Console.WriteLine($"Join event received: {message}") },
+				{ RoutingKey.Leave, async message => Console.WriteLine($"Leave event received: {message}") },
+				{ RoutingKey.CreateGame, HandleCreateGameAsync },
 			};
 		}
 
@@ -130,7 +130,7 @@ namespace GameServer.MessageServices
 				BoardState = game.BoardState,
 				State = game.State,
 				MatchRequestId = createGameDto.MatchRequestId,
-				Event = ERoutingKey.GameCreated
+				Event = RoutingKey.GameCreated
 			};
 
 			await _messageBusClient.PublishGameCreatedAsync(gameCreatedEvent);

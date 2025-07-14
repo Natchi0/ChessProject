@@ -27,8 +27,8 @@ namespace MatchMakingService.MessageServices
 			//manejo de eventos de mensajes mediante un diccionario de handlers para evitar usar switch
 			_handlers = new Dictionary<string, Func<string, Task>>
 			{
-				{ ERoutingKey.FindMatch, HandleFindMatchAsync },
-				{ ERoutingKey.GameCreated, HandleGameCreated }
+				{ RoutingKey.FindMatch, HandleFindMatchAsync },
+				{ RoutingKey.GameCreated, HandleGameCreated }
 			};
 		}
 
@@ -65,8 +65,8 @@ namespace MatchMakingService.MessageServices
 			await _channel.QueueDeclareAsync(queue: "MatchMakingQueue", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
 			//vincular colas
-			await _channel.QueueBindAsync("MatchMakingQueue", exchange, ERoutingKey.FindMatch);
-			await _channel.QueueBindAsync("MatchMakingQueue", exchange, ERoutingKey.GameCreated);
+			await _channel.QueueBindAsync("MatchMakingQueue", exchange, RoutingKey.FindMatch);
+			await _channel.QueueBindAsync("MatchMakingQueue", exchange, RoutingKey.GameCreated);
 
 			var consumer = new AsyncEventingBasicConsumer(_channel);
 			consumer.ReceivedAsync += async (model, ea) =>

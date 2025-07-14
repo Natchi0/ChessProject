@@ -27,10 +27,10 @@ namespace SocketService.MessageServices
 			//manejo de eventos de mensajes mediante un diccionario de handlers para evitar usar switch
 			_handlers = new Dictionary<string, Func<string, Task>>
 			{
-				{ ERoutingKey.MatchFound, HandleMatchFoundAsync },
-				{ ERoutingKey.GameUpdated, async message => Console.WriteLine($"Game updated event received: {message}") },
-				{ ERoutingKey.MoveRejected, async message => Console.WriteLine($"Move rejected event received: {message}") },
-				{ ERoutingKey.GameCreated, HandleGameCreatedAsync }
+				{ RoutingKey.MatchFound, HandleMatchFoundAsync },
+				{ RoutingKey.GameUpdated, async message => Console.WriteLine($"Game updated event received: {message}") },
+				{ RoutingKey.MoveRejected, async message => Console.WriteLine($"Move rejected event received: {message}") },
+				{ RoutingKey.GameCreated, HandleGameCreatedAsync }
 			};
 		}
 
@@ -53,7 +53,7 @@ namespace SocketService.MessageServices
 			await _channel.QueueBindAsync("SocketQueue", exchange, "match.found");
 			await _channel.QueueBindAsync("SocketQueue", exchange, "game.updated");
 			await _channel.QueueBindAsync("SocketQueue", exchange, "move.rejected");
-			await _channel.QueueBindAsync("SocketQueue", exchange, ERoutingKey.GameCreated);
+			await _channel.QueueBindAsync("SocketQueue", exchange, RoutingKey.GameCreated);
 
 			var consumer = new AsyncEventingBasicConsumer(_channel);
 			consumer.ReceivedAsync += async (model, ea) =>

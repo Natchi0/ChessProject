@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\Shared\Shared.csproj" />
     <ProjectReference Include="..\ChessUtils\ChessUtilsLib.csproj" />
     <ProjectReference Include="..\DAL\DAL.csproj" />
+    <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
 </Project>

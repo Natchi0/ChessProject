@@ -6,6 +6,6 @@ namespace SocketService.Dtos
 	{
 		public required int PlayerId { get; set; }
 		public required string ConnectionId { get; set; }
-		public required string Event { get; set; } = ERoutingKey.FindMatch; // evento por defecto
+		public required string Event { get; set; } = RoutingKey.FindMatch; // evento por defecto
 	}
 }
