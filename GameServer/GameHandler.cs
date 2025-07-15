@@ -68,12 +68,6 @@ namespace GameServer
 
 			Games.Add(game.Id, game);
 
-			var dto = new {game.Id, White = playerId1, Black = playerId2};
-			//obtengo el nombre del grupo al que se le va a enviar el mensaje
-			var group = GameHub.GetGroupName(game.Id);
-			//envio el evento a los jugadores conectados a ese grupo
-			await _hub.Clients.Group(group).SendAsync("GameCreated", dto);
-
 			return game;
 		}
 

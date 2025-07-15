@@ -137,12 +137,16 @@ namespace SocketService.MessageServices
 
 		private async Task HandleGameCreatedAsync(string message)
 		{
+			var gameCreated = JsonSerializer.Deserialize<GameCreatedDto>(message);
+
+			if (gameCreated == null)
+			{
+				Console.WriteLine("Mensaje inválido en HandleGameCreatedAsync");
+				return;
+			}
+
 			try
 			{
-				GameCreatedDto? gameCreated = JsonSerializer.Deserialize<GameCreatedDto>(message);
-
-				if (gameCreated == null)
-					throw new Exception("CreateGameDto es null o no se pudo deserializar correctamente");
 				
 				var connection1 = ConnectionMapping.GetConnectionId(gameCreated.Player1Id);
 				var connection2 = ConnectionMapping.GetConnectionId(gameCreated.Player2Id);

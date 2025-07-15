@@ -118,9 +118,6 @@ namespace GameServer.MessageServices
 				return;
 			}
 
-			context.Games.Add(game);
-			await context.SaveChangesAsync();
-
 			//publico el evento de juego creado
 			var gameCreatedEvent = new GameCreatedDto
 			{
