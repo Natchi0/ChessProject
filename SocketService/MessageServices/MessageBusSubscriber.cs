@@ -5,6 +5,7 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 using Shared;
 using SocketService.Dtos;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -28,8 +29,8 @@ namespace SocketService.MessageServices
 			_handlers = new Dictionary<string, Func<string, Task>>
 			{
 				{ RoutingKey.MatchFound, HandleMatchFoundAsync },
-				{ RoutingKey.GameUpdated, async message => Console.WriteLine($"Game updated event received: {message}") },
-				{ RoutingKey.MoveRejected, async message => Console.WriteLine($"Move rejected event received: {message}") },
+				{ RoutingKey.GameUpdated, HandleGameUpdatedAsync },
+				{ RoutingKey.MoveRejected, HandleMoveRejectedAsync },
 				{ RoutingKey.GameCreated, HandleGameCreatedAsync }
 			};
 		}
@@ -164,5 +165,53 @@ namespace SocketService.MessageServices
 			}
 		}
 
+		private async Task HandleGameUpdatedAsync(string message)
+		{
+			var gameUpdated = JsonSerializer.Deserialize<GameUpdatedDto>(message);
+
+			if (gameUpdated == null)
+			{
+				Console.WriteLine("Mensaje inválido en HandleGameUpdatedAsync");
+				return;
+			}
+
+			try
+			{
+				var conn1 = ConnectionMapping.GetConnectionId(gameUpdated.Player1Id);
+				var conn2 = ConnectionMapping.GetConnectionId(gameUpdated.Player2Id);
+
+				if (conn1 != null)
+					await _hub.Clients.Client(conn1).SendAsync("GameUpdated", gameUpdated);
+
+				if (conn2 != null)
+					await _hub.Clients.Client(conn2).SendAsync("GameUpdated", gameUpdated);
+			}
+			catch(Exception ex)
+			{
+				Console.WriteLine($"Error al manejar el evento GameUpdated: {ex.Message}");
+			}
+		}
+
+		private async Task HandleMoveRejectedAsync(string message)
+		{
+			var moveRejected = JsonSerializer.Deserialize<MoveRejectedDto>(message);
+
+			if (moveRejected == null)
+			{
+				Console.WriteLine("Mensaje inválido en HandleMoveRejectedAsync");
+				return;
+			}
+
+			try
+			{
+				var connection = ConnectionMapping.GetConnectionId(moveRejected.PlayerId);
+				if (connection != null)
+					await _hub.Clients.Client(connection).SendAsync("MoveRejected", moveRejected.Message);
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error al manejar el evento MoveRejected: {ex.Message}");
+			}
+		}
 	}
 }

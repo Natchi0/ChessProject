@@ -1,7 +1,9 @@
 ﻿using MatchMakingService;
 using Microsoft.AspNetCore.SignalR;
+using Shared;
 using SocketService.Dtos;
 using SocketService.MessageServices;
+using System.Text.Json;
 
 namespace SocketService
 {
@@ -32,8 +34,7 @@ namespace SocketService
 				RequestMatchPublishDto requestMatchPublishDto = new RequestMatchPublishDto
 				{
 					PlayerId = playerId,
-					ConnectionId = connectionId,
-					Event = "find.match"
+					Event = RoutingKey.FindMatch
 				};
 
 				await _messageBusClient.PublishNewMatchRequest(requestMatchPublishDto);
@@ -43,7 +44,22 @@ namespace SocketService
 			catch (Exception ex)
 			{
 				Console.WriteLine($"EXCEPTION {ex.Message}");
-				await Clients.Caller.SendAsync("MatchRejected", ex.Message);
+				await Clients.Caller.SendAsync(SocketEvent.MatchRejected, ex.Message);
+			}
+		}
+
+		public async Task MakeMove(MoveRequestDto move)
+		{
+			Console.WriteLine($"MakeMove: Player - {move.PlayerId}");
+			Console.WriteLine($"DEBUG moveDto: {JsonSerializer.Serialize(move)}");
+			try
+			{
+				await _messageBusClient.PublishEventAsync(move);
+			}
+			catch(Exception ex)
+			{
+				Console.WriteLine($"Excepcion {ex.Message}");
+				await Clients.Caller.SendAsync(SocketEvent.MoveRejected, "Error del socket");
 			}
 		}
 	}

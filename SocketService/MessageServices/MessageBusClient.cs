@@ -87,11 +87,11 @@ namespace SocketService.MessageServices
 		//Esta funcion es generica, debería utilizarla en vez de los metodos especificos
 		public async Task PublishEventAsync(IEventDto eventMessage)
 		{
-			var message = JsonSerializer.Serialize(eventMessage);
+			var message = JsonSerializer.Serialize(eventMessage, eventMessage.GetType());
 
 			if (!_connection.IsOpen)
 			{
-				Console.WriteLine("La coneccion esta cerrada, no se puede enviar");
+				Console.WriteLine("La conexion esta cerrada, no se puede enviar");
 				return;
 			}
 

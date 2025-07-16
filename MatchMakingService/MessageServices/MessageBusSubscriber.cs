@@ -130,7 +130,7 @@ namespace MatchMakingService.MessageServices
 					using var scope = _serviceProvider.CreateScope();
 					var matchService = scope.ServiceProvider.GetRequiredService<MatchService>();
 
-					await matchService.RequestMatch(requestMatch.PlayerId, requestMatch.ConnectionId);
+					await matchService.RequestMatch(requestMatch.PlayerId);
 				}
 				catch (Exception ex)
 				{

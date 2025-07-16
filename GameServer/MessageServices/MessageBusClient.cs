@@ -66,7 +66,7 @@ namespace GameServer.MessageServices
 		//Esta funcion es generica, debería utilizarla en vez de los metodos especificos
 		public async Task PublishEventAsync(IEventDto eventMessage)
 		{
-			var message = JsonSerializer.Serialize(eventMessage);
+			var message = JsonSerializer.Serialize(eventMessage, eventMessage.GetType());
 
 			if (!_connection.IsOpen)
 			{

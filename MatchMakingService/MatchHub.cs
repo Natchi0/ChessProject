@@ -25,7 +25,7 @@ namespace MatchMakingService
 
 			try
 			{
-				await _matchService.RequestMatch(playerId, connectionId);
+				await _matchService.RequestMatch(playerId);
 			}
 			catch (Exception ex)
 			{

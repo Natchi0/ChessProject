@@ -1,4 +1,5 @@
 ﻿using DAL;
+using DAL.Models;
 using GameServer.Dtos;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
@@ -33,7 +34,7 @@ namespace GameServer.MessageServices
 			//manejo de eventos de mensajes mediante un diccionario de handlers para evitar usar switch
 			_handlers = new Dictionary<string, Func<string, Task>>
 			{
-				{ RoutingKey.Move, async message => Console.WriteLine($"Move event received: {message}") },
+				{ RoutingKey.Move, HandleMoveAsync },
 				{ RoutingKey.Join, async message => Console.WriteLine($"Join event received: {message}") },
 				{ RoutingKey.Leave, async message => Console.WriteLine($"Leave event received: {message}") },
 				{ RoutingKey.CreateGame, HandleCreateGameAsync },
@@ -131,6 +132,40 @@ namespace GameServer.MessageServices
 			};
 
 			await _messageBusClient.PublishGameCreatedAsync(gameCreatedEvent);
+		}
+
+		private async Task HandleMoveAsync(string message)
+		{
+			var moveDto = JsonSerializer.Deserialize<MoveRequestDto>(message);
+
+			if (moveDto == null)
+			{
+				Console.WriteLine("Mensaje inválido en move");
+				return;
+			}
+
+			// TODO: agrgar validaciones como que la coneccion corresponda a la partida y eso
+			Console.WriteLine($"Move: Player - {moveDto.PlayerId} - Game {moveDto.GameId} - From {moveDto.FromIndex} - To {moveDto.ToIndex}");
+
+			try
+			{
+				var gameUpdated = await _gameHandler.MakeMove(moveDto.GameId, moveDto.PlayerId, moveDto.FromIndex, moveDto.ToIndex);
+				var gameDto = new GameUpdatedDto(gameUpdated);
+
+				await _messageBusClient.PublishEventAsync(gameDto);
+			}
+			catch (Exception ex)
+			{
+				//TODO: mejorar como se maneja el evento de movimiento rechazado
+				var moveRejected = new MoveRejectedDto
+				{
+					GameId = moveDto.GameId,
+					PlayerId = moveDto.PlayerId,
+					Message = ex.Message,
+					Event = RoutingKey.MoveRejected
+				};
+				await _messageBusClient.PublishEventAsync(moveRejected);
+			}
 		}
 	}
 }

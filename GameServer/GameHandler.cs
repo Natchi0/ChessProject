@@ -2,6 +2,7 @@
 using DAL;
 using DAL.DTOs;
 using DAL.Models;
+using GameServer.Dtos;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -29,24 +30,6 @@ namespace GameServer
 		{
 			_contextFactory = contextFactory;
 			_hub = hubContext;
-
-			//cargar los juegos de la base de datos que ya existen y no han terminado
-			//esto es para que no se pierdan los juegos al reiniciar el servidor
-			//TODO: esto se debe expandir cuando se añada soporte para varias instancias del GameServer
-			//ademas debo asegurarme que el cliente se encargue se intentar la reconeccion
-			//using var context = _contextFactory.CreateDbContext();
-			//var games = context.Games
-			//	.Where(g => g.State != EState.Finished)
-			//	.ToList();
-
-			//foreach (var game in games)
-			//{
-			//	game.Board = new Board();
-			//	game.Board.SetSquares(game.BoardState);
-			//	Games.Add(game.Id, game);
-			//}
-
-			Console.WriteLine($"Cargados {Games.Count} juegos de la base de datos.");
 		}
 
 		//Crear un juego nuevo y guardarlo tanto en el diccionario como en la base de datos
@@ -72,7 +55,7 @@ namespace GameServer
 		}
 
 		//Realizar movida en el juego
-		public async Task MakeMove(int gameId, int playerId, int fromIndex, int toIndex)
+		public async Task<Game> MakeMove(int gameId, int playerId, int fromIndex, int toIndex)
 		{
 			if (!Games.TryGetValue(gameId, out var game))
 				throw new InvalidOperationException($"El juego con ID {gameId} no existe.");
@@ -80,8 +63,14 @@ namespace GameServer
 			//consigo el color del jugador - Id1 es blanco, Id2 es negro
 			var playerColor = game.PlayerId1 == playerId ? PieceColor.White : PieceColor.Black;
 
-			//intento procesar el movimiento
-			game.HandlePieceMovement(fromIndex, toIndex, playerColor);
+			try
+			{
+				game.HandlePieceMovement(fromIndex, toIndex, playerColor);
+			}
+			catch (Exception ex)
+			{
+				throw new Exception($"Movimiento inválido: {ex.Message}");
+			}
 
 			//guardo en la base
 			//TODO: usar alguna cola o algo para mandar los cambios a la base de datos
@@ -98,10 +87,10 @@ namespace GameServer
 			await context.SaveChangesAsync();
 
 			//envio el nuevo estado del juego
-			//TODO: enviar dto
-			var group = GameHub.GetGroupName(gameId);
-			await _hub.Clients.Group(group)
-					 .SendAsync("GameUpdated", game);
+			return game;
+			//var group = GameHub.GetGroupName(gameId);
+			//await _hub.Clients.Group(group)
+			//		 .SendAsync("GameUpdated", game);
 		}
 
 		//private async Task Resign(WebSocket ws, ResignMessage resign)

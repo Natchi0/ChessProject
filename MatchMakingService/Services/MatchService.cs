@@ -24,7 +24,7 @@ namespace MatchMakingService.Services
 
 		//si no hay match request en waiting, crea una nueva y no devuelvo ningun evento ya que queda esperando
 		//si hay match request en waiting, emparejo y mando el evento de crear juego, ese despues se encarga de crear el juego y avisar al usuario
-		public async Task RequestMatch(int playerId, string connectionId)
+		public async Task RequestMatch(int playerId)
 		{
 			if (!await PlayerExists(playerId))
 				throw new Exception("El jugador no existe");
